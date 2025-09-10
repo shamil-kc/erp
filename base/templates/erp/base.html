@@ -1,0 +1,215 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}ERP System{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            background: #f7f8fa;
+        }
+        .erp-sidebar {
+            height: 100vh;
+            width: 240px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: #1a2233;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        .erp-logo-area {
+            text-align: center;
+            padding: 32px 0 18px 0;
+            font-size: 1.4rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #232b3e;
+        }
+        .erp-logo-area img {
+            width: 60px; 
+            margin-bottom: 10px;
+        }
+        .erp-nav {
+            flex: 1;
+            padding: 36px 0 0 0;
+        }
+        .erp-nav a {
+            color: #d2d6dc;
+            display: block;
+            padding: 12px 32px;
+            text-decoration: none;
+            border-radius: 6px 0 0 6px;
+            transition: 0.2s background, 0.2s color;
+            font-size: 1.08rem;
+        }
+        .erp-nav a.active, .erp-nav a:hover {
+            background: #272e4a;
+            color: #fff;
+        }
+        .erp-user-section {
+            border-top: 1px solid #232b3e;
+            padding: 20px 24px 32px 24px;
+            color: #adb1ba;
+        }
+        @media (max-width: 991px) {
+            .erp-sidebar { width: 70px; }
+            .erp-logo-area, .erp-user-section, .erp-nav a span { display: none; }
+            .erp-nav a { text-align: center; padding: 12px 12px; font-size: 1.3rem; }
+        }
+        .content-main {
+            margin-left: 240px;
+            padding: 40px 36px 36px 36px;
+        }
+        @media (max-width: 991px) {
+            .content-main { margin-left: 70px; padding: 24px 12px; }
+        }
+        /* Beautiful Data Table Styles */
+table {
+    width: 100%;
+    border: 1px solid #e1e4e8;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 2rem;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(60,72,100,0.04);
+    border-radius: 8px;
+    overflow: hidden;
+}
+th, td {
+    border: 1px solid #e1e4e8;
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid #f2f4f7;
+    font-size: 1.01rem;
+}
+th {
+    background: #f5f7fa;
+    font-weight: 600;
+    color: #1a2233;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    letter-spacing: .04em;
+}
+tr {
+    background: #fff;
+    transition: background 0.2s;
+}
+tr:nth-child(even) {
+    background: #f9fafb;
+}
+tr:hover {
+    background: #f1f5fb;
+}
+td {
+    color: #33374d;
+}
+table thead th:first-child {
+    border-radius: 8px 0 0 0;
+}
+table thead th:last-child {
+    border-radius: 0 8px 0 0;
+}
+table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: 8px;
+}
+table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 8px;
+}
+/* Responsive wrapping */
+@media (max-width: 800px) {
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+    thead tr {
+        display: none;
+    }
+    td {
+        padding-left: 40%;
+        position: relative;
+        border: none;
+        border-bottom: 1px solid #f2f4f7;
+    }
+    td:before {
+        position: absolute;
+        left: 16px;
+        top: 14px;
+        width: 36%;
+        white-space: nowrap;
+        font-weight: bold;
+        color: #6881a8;
+        content: attr(data-label);
+    }
+    tr {
+        margin-bottom: 18px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(60,72,100,0.06);
+        background: #fff;
+    }
+}
+
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="erp-sidebar">
+    <div class="erp-logo-area">
+        <img src="{% static 'erp/logo.png' %}" alt="Logo">
+        <div>
+            AL JAZEERAH MARINE</div>
+    </div>
+    <nav class="erp-nav flex-column">
+        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+        </a>
+        <a href="{% url 'product-list' %}" class="{% if request.resolver_match.url_name == 'product-list' %}active{% endif %}">
+            <i class="bi bi-box"></i> <span>Products</span>
+        </a>
+        <a href="{% url 'inventory-report' %}" class="{% if request.resolver_match.url_name == 'inventory-report' %}active{% endif %}">
+            <i class="bi bi-stack"></i> <span>Inventory</span>
+        </a>
+        <a href="{% url 'purchase-report' %}" class="{% if request.resolver_match.url_name == 'purchase-report' %}active{% endif %}">
+            <i class="bi bi-cart-plus"></i> <span>Purchases</span>
+        <a href="{% url 'sales-report' %}" class="{% if request.resolver_match.url_name == 'sales-report' %}active{% endif %}">
+            <i class="bi bi-bar-chart"></i> <span>Sales Report</span>
+        </a>
+        <a href="{% url 'profit-tax-report' %}" class="{% if request.resolver_match.url_name == 'profit-tax-report' %}active{% endif %}">
+            <i class="bi bi-cash-stack"></i> <span>Profit & Tax</span>
+        </a>
+      <a href="{% url 'expense-list' %}" class="{% if request.resolver_match.url_name == 'expense-list' or request.resolver_match.url_name == 'expense-add' %}active{% endif %}">
+        <i class="bi bi-wallet2"></i> <span>Expenses</span>
+    </a>
+    <a href="{% url 'salary-list' %}" class="{% if request.resolver_match.url_name == 'salary-list' or request.resolver_match.url_name == 'salary-add' %}active{% endif %}">
+        <i class="bi bi-people"></i> <span>Salary</span>
+    </a>
+        <a href="{% url 'admin:index' %}">
+            <i class="bi bi-gear"></i> <span>Admin</span>
+        </a>
+    </nav>
+    <div class="erp-user-section mt-auto">
+        {% if request.user.is_authenticated %}
+            <div>
+                <i class="bi bi-person-circle"></i>
+                {{ request.user.get_full_name|default:request.user.username }}
+            </div>
+            <div><a href="" class="text-decoration-none text-secondary">Logout</a></div>
+        {% else %}
+            <a href="" class="text-decoration-none text-light">Login</a>
+        {% endif %}
+    </div>
+</div>
+<div class="content-main">
+    {% block content %}
+    {% endblock %}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Bootstrap Icons CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,76 @@
+{% extends 'erp/base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Sales Report</h2>
+    <a href="{% url 'sales-add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add Sale
+    </a>
+</div>
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <label for="start_date" class="form-label mb-0">From:</label>
+    <input type="date" name="start_date" id="start_date" class="form-control" value="{{ request.GET.start_date }}">
+  </div>
+  <div class="col-auto">
+    <label for="end_date" class="form-label mb-0">To:</label>
+    <input type="date" name="end_date" id="end_date" class="form-control" value="{{ request.GET.end_date }}">
+  </div>
+  <div class="col-auto align-self-end">
+    <button type="submit" class="btn btn-outline-secondary">Filter</button>
+    <a href="{% url 'sales-report' %}" class="btn btn-link">Reset</a>
+  </div>
+</form>
+
+<table class="table table-bordered table-striped table-sm align-middle small mb-4">
+    <thead>
+        <tr>
+            <th>Invoice No</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Product</th>
+            <th>Type</th>
+            <th>Grade</th>
+            <th>Size</th>
+            <th>Qty Sold</th>
+            <th>Sale Price USD</th>
+            <th>Sale Price AED</th>
+            <th>Total Amount USD</th>
+            <th>Total Amount AED</th>
+            <th>Shipping USD</th>
+            <th>Shipping AED</th>
+            <th>Invoice Total with VAT USD</th>
+            <th>Invoice Total with VAT AED</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for invoice in invoices %}
+        {% with item_count=invoice.sale_items.count %}
+            {% for item in invoice.sale_items.all %}
+                <tr>
+                    {% if forloop.first %}
+                        <td rowspan="{{ item_count }}">{{ invoice.invoice_no }}</td>
+                        <td rowspan="{{ item_count }}">{{ invoice.sale_date }}</td>
+                        <td rowspan="{{ item_count }}">{{ invoice.customer_name }}</td>
+                    {% endif %}
+                    <td>{{ item.item.grade.product_type.product.name }}</td>
+                    <td>{{ item.item.grade.product_type.type_name }}</td>
+                    <td>{{ item.item.grade.grade }}</td>
+                    <td>{{ item.item.size }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ item.sale_price_usd|floatformat:2 }}</td>
+                    <td>{{ item.sale_price_aed|floatformat:2 }}</td>
+                    <td>{{ item.total_amount_usd|floatformat:2 }}</td>
+                    <td>{{ item.total_amount_aed|floatformat:2 }}</td>
+                    <td>{{ item.shipping_usd|floatformat:2 }}</td>
+                    <td>{{ item.shipping_aed|floatformat:2 }}</td>
+                    {% if forloop.first %}
+                        <td rowspan="{{ item_count }}">{{ invoice.total_with_vat_usd|floatformat:2 }}</td>
+                        <td rowspan="{{ item_count }}">{{ invoice.total_with_vat_aed|floatformat:2 }}</td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+        {% endwith %}
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

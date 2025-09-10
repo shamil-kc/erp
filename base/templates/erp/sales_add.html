@@ -1,0 +1,106 @@
+{% extends 'erp/base.html' %}
+{% block content %}
+<h2 class="mb-4">Add Sales Invoice</h2>
+<form method="post" id="sales-form">{% csrf_token %}
+  <div class="row mb-3">
+    <div class="col-md-4 mb-2">
+      <label class="form-label">Invoice No</label>
+      <input type="text" name="invoice_no" class="form-control" required>
+    </div>
+    <div class="col-md-4 mb-2">
+      <label class="form-label">Customer Name</label>
+      <input type="text" name="customer_name" class="form-control" required>
+    </div>
+    <div class="col-md-4 mb-2">
+      <label class="form-label">Sale Date</label>
+      <input type="date" name="sale_date" class="form-control" value="{{ today|default:None }}">
+    </div>
+  </div>
+
+  <table id="sales-table" class="mb-4">
+    <thead>
+      <tr>
+        <th>Product Item</th>
+        <th>Qty</th>
+        <th>Unit Price USD</th>
+        <th>Unit Price AED</th>
+        <th>Shipping USD</th>
+        <th>Shipping AED</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <select name="form-0-item" class="form-select" required>
+            <option value="" selected disabled>Choose Item</option>
+            {% for i in items %}
+              <option value="{{ i.id }}">{{ i.grade.product_type.product.name }} / {{ i.grade.product_type.type_name }} / {{ i.grade.grade }} / {{ i.size }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td><input type="number" min="1" name="form-0-qty" class="form-control" required></td>
+        <td><input type="number" step="0.01" name="form-0-sale_price_usd" class="form-control" required></td>
+        <td><input type="number" step="0.01" name="form-0-sale_price_aed" class="form-control" required></td>
+        <td><input type="number" step="0.01" name="form-0-shipping_usd" class="form-control" value="0" required></td>
+        <td><input type="number" step="0.01" name="form-0-shipping_aed" class="form-control" value="0" required></td>
+        <td>
+          <button type="button" onclick="removeRow(this)" class="btn btn-sm btn-danger" title="Delete">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <input type="hidden" id="form-TOTAL_FORMS" name="form-TOTAL_FORMS" value="1">
+  <button type="button" onclick="addRow()" class="btn btn-outline-primary mb-3">
+    <i class="bi bi-plus-lg"></i> Add Another
+  </button><br>
+  <button type="submit" class="btn btn-success">Submit Sale Invoice</button>
+</form>
+
+<script>
+function addRow() {
+    const tableBody = document.querySelector('#sales-table tbody');
+    if (!tableBody) return;
+    const firstRow = tableBody.querySelector('tr');
+    if (!firstRow) return;
+    const formNum = parseInt(document.getElementById('form-TOTAL_FORMS').value);
+    const newRow = firstRow.cloneNode(true);
+
+    [...newRow.querySelectorAll('input, select')].forEach(el => {
+        let name = el.getAttribute('name');
+        if (name) {
+            let newName = name.replace(/form-\d+-/, `form-${formNum}-`);
+            el.setAttribute('name', newName);
+        }
+        if (el.tagName.toLowerCase() === 'select') {
+            el.selectedIndex = 0;
+        } else if (el.type === 'number') {
+            el.value = (el.name.includes('qty') ? '' : '0');
+        } else {
+            el.value = '';
+        }
+    });
+
+    tableBody.appendChild(newRow);
+    document.getElementById('form-TOTAL_FORMS').value = formNum + 1;
+}
+function removeRow(btn) {
+    const tableBody = document.querySelector('#sales-table tbody');
+    if (tableBody.rows.length > 1) {
+        btn.closest('tr').remove();
+        document.getElementById('form-TOTAL_FORMS').value = tableBody.rows.length;
+    } else {
+        [...btn.closest('tr').querySelectorAll('input')].forEach(el => {
+            el.value = (el.type === 'number') ? (el.name.includes('qty') ? '' : '0') : '';
+        });
+        const select = btn.closest('tr').querySelector('select');
+        if (select) {
+            select.selectedIndex = 0;
+        }
+    }
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+{% endblock %}

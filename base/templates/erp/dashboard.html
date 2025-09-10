@@ -1,0 +1,62 @@
+{% extends 'erp/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">Performance Dashboard</h2>
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-primary">
+            <div class="card-body">
+                <h6 class="card-title text-primary">Total Sales (AED, 12mo)</h6>
+                <div class="h3">{{ total_sales|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-success">
+            <div class="card-body">
+                <h6 class="card-title text-success">Total Purchases (AED)</h6>
+                <div class="h3">{{ total_purchases|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-info">
+            <div class="card-body">
+                <h6 class="card-title text-info">Profit (AED, 12mo)</h6>
+                <div class="h3">{{ profit|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title text-dark">Monthly Sales Trend (AED)</h5>
+        <canvas id="salesChart" height="80"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    const salesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ labels|safe }},
+            datasets: [{
+                label: 'Monthly Sales (AED)',
+                backgroundColor: 'rgba(56,135,245,0.7)',
+                borderColor: 'rgba(56,135,245,1)',
+                borderWidth: 1,
+                data: {{ sales_data|safe }},
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero:true }
+            }
+        }
+    });
+</script>
+{% endblock %}

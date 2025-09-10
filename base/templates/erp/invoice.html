@@ -1,0 +1,25 @@
+
+
+{% extends 'erp/base.html' %}
+{% block content %}
+  <h2>Invoice {{ invoice.invoice_no }}</h2>
+<p>Date: {{ invoice.sale_date }}</p>
+<p>Customer: {{ invoice.customer_name }}</p>
+<table>
+  <tr>
+    <th>Product</th><th>Type</th><th>Grade</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Amount</th>
+  </tr>
+  {% for item in invoice.sale_items.all %}
+  <tr>
+    <td>{{ item.item.grade.product_type.product.name }}</td>
+    <td>{{ item.item.grade.product_type.type_name }}</td>
+    <td>{{ item.item.grade.grade }}</td>
+    <td>{{ item.item.size }}</td>
+    <td>{{ item.qty }}</td>
+    <td>{{ item.sale_price_usd }}</td>
+    <td>{{ item.amount_usd }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% endblock %}

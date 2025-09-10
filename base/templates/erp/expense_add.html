@@ -1,0 +1,69 @@
+{% extends 'erp/base.html' %}
+{% block content %}
+<h2 class="mb-4">Add Expenses</h2>
+<form method="post" id="expense-form">{% csrf_token %}
+ <table id="expense-table" class="mb-4">
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Amount AED</th>
+      <th>Amount USD</th>
+      <th>Date</th>
+      <th>Notes</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <select name="form-0-type" class="form-select" required>
+          <option value="" selected disabled>Choose Type</option>
+          {% for t in types %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td><input type="number" step="0.01" name="form-0-amount_aed" class="form-control" required></td>
+      <td><input type="number" step="0.01" name="form-0-amount_usd" class="form-control" required></td>
+      <td><input type="date" name="form-0-date" class="form-control" value="{{ today }}"></td>
+      <td><input type="text" name="form-0-notes" class="form-control"></td>
+      <td>
+        <button type="button" onclick="removeRow(this)" class="btn btn-sm btn-danger" title="Delete">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    </tr>
+  </tbody>
+</table>
+    <input type="hidden" id="form-TOTAL_FORMS" name="form-TOTAL_FORMS" value="1">
+  <button type="button" onclick="addRow()" class="btn btn-outline-primary mb-3"><i class="bi bi-plus-lg"></i> Add Another</button><br>
+  <button type="submit" class="btn btn-success">Submit Expenses</button>
+</form>
+<script>
+function addRow() {
+    const tableBody = document.querySelector('#expense-table tbody');
+    const firstRow = tableBody.querySelector('tr');
+    const formNum = parseInt(document.getElementById('form-TOTAL_FORMS').value);
+    const newRow = firstRow.cloneNode(true);
+    [...newRow.querySelectorAll('input, select')].forEach(el => {
+        if (el.name) el.name = el.name.replace(/form-\d+-/, `form-${formNum}-`);
+        if (el.tagName.toLowerCase() === 'select') el.selectedIndex = 0;
+        else el.value = '';
+    });
+    tableBody.appendChild(newRow);
+    document.getElementById('form-TOTAL_FORMS').value = formNum + 1;
+}
+function removeRow(btn) {
+    const tableBody = document.querySelector('#expense-table tbody');
+    if (tableBody.rows.length > 1) {
+        btn.closest('tr').remove();
+        document.getElementById('form-TOTAL_FORMS').value = tableBody.rows.length;
+    } else {
+        [...btn.closest('tr').querySelectorAll('input')].forEach(el => el.value = '');
+        const select = btn.closest('tr').querySelector('select');
+        if (select) select.selectedIndex = 0;
+    }
+}
+
+</script>
+{% endblock %}

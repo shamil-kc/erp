@@ -1,0 +1,189 @@
+{% extends 'erp/base.html' %}
+{% block content %}
+<h2>Profit and Corporate Tax Report</h2>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <label for="start_date" class="form-label mb-0">From:</label>
+    <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start }}">
+  </div>
+  <div class="col-auto">
+    <label for="end_date" class="form-label mb-0">To:</label>
+    <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end }}">
+  </div>
+  <div class="col-auto align-self-end">
+    <button type="submit" class="btn btn-outline-primary">Filter</button>
+    <a href="{% url 'profit-tax-report' %}" class="btn btn-link">Reset</a>
+  </div>
+</form>
+
+{% if start and end %}
+<p>Period: <b>{{ start }} to {{ end }}</b></p>
+{% endif %}
+
+{% if tax %}
+<p>VAT: <b>{{ tax.vat_percent }}%</b> | Corporate Tax: <b>{{ tax.corporate_tax_percent }}%</b></p>
+{% endif %}
+
+<table class="table table-bordered table-striped table-sm align-middle small mb-4">
+<thead>
+    <tr>
+        <th colspan="12" class="text-center bg-light">Sales Details</th>
+    </tr>
+    <tr>
+        <th>Invoice No</th>
+        <th>Sale Date</th>
+        <th>Customer</th>
+        <th>Product</th>
+        <th>Type</th>
+        <th>Grade</th>
+        <th>Size</th>
+        <th>Qty</th>
+        <th>Sale Price USD</th>
+        <th>Sale Price AED</th>
+        <th>Shipping USD</th>
+        <th>Shipping AED</th>
+    </tr>
+</thead>
+<tbody>
+    {% for invoice in sales %}
+        {% with item_count=invoice.sale_items.count %}
+            {% for item in invoice.sale_items.all %}
+                <tr>
+                    {% if forloop.first %}
+                    <td rowspan="{{ item_count }}">{{ invoice.invoice_no }}</td>
+                    <td rowspan="{{ item_count }}">{{ invoice.sale_date }}</td>
+                    <td rowspan="{{ item_count }}">{{ invoice.customer_name }}</td>
+                    {% endif %}
+                    <td>{{ item.item.grade.product_type.product.name }}</td>
+                    <td>{{ item.item.grade.product_type.type_name }}</td>
+                    <td>{{ item.item.grade.grade }}</td>
+                    <td>{{ item.item.size }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ item.sale_price_usd|floatformat:2 }}</td>
+                    <td>{{ item.sale_price_aed|floatformat:2 }}</td>
+                    <td>{{ item.shipping_usd|floatformat:2 }}</td>
+                    <td>{{ item.shipping_aed|floatformat:2 }}</td>
+                </tr>
+            {% endfor %}
+        {% endwith %}
+    {% empty %}
+    <tr><td colspan="12">No sales found.</td></tr>
+    {% endfor %}
+</tbody>
+<thead>
+    <tr>
+        <th colspan="12" class="text-center bg-light">Purchases Details</th>
+    </tr>
+    <tr>
+        <th>Invoice No</th>
+        <th>Purchase Date</th>
+        <th>Supplier</th>
+        <th>Product</th>
+        <th>Type</th>
+        <th>Grade</th>
+        <th>Size</th>
+        <th>Qty</th>
+        <th>Unit Price USD</th>
+        <th>Unit Price AED</th>
+        <th>Shipping USD</th>
+        <th>Shipping AED</th>
+    </tr>
+</thead>
+<tbody>
+    {% for invoice in purchases %}
+        {% with item_count=invoice.purchase_items.count %}
+            {% for item in invoice.purchase_items.all %}
+                <tr>
+                    {% if forloop.first %}
+                    <td rowspan="{{ item_count }}">{{ invoice.invoice_no }}</td>
+                    <td rowspan="{{ item_count }}">{{ invoice.purchase_date }}</td>
+                    <td rowspan="{{ item_count }}">{{ invoice.supplier }}</td>
+                    {% endif %}
+                    <td>{{ item.item.grade.product_type.product.name }}</td>
+                    <td>{{ item.item.grade.product_type.type_name }}</td>
+                    <td>{{ item.item.grade.grade }}</td>
+                    <td>{{ item.item.size }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ item.unit_price_usd|floatformat:2 }}</td>
+                    <td>{{ item.unit_price_aed|floatformat:2 }}</td>
+                    <td>{{ item.shipping_per_unit_usd|floatformat:2 }}</td>
+                    <td>{{ item.shipping_per_unit_aed|floatformat:2 }}</td>
+                </tr>
+            {% endfor %}
+        {% endwith %}
+    {% empty %}
+    <tr><td colspan="12">No purchases found.</td></tr>
+    {% endfor %}
+</tbody>
+
+<thead>
+    <tr>
+        <th colspan="6" class="text-center bg-light">Expenses Details</th>
+    </tr>
+    <tr>
+        <th>Type</th>
+        <th>Date</th>
+        <th>Notes</th>
+        <th class="text-end">Amount AED</th>
+        <th class="text-end">Amount USD</th>
+        <th></th>
+    </tr>
+</thead>
+<tbody>
+    {% for expense in expenses %}
+    <tr>
+        <td>{{ expense.type.name }}</td>
+        <td>{{ expense.date }}</td>
+        <td>{{ expense.notes }}</td>
+        <td class="text-end">{{ expense.amount_aed|floatformat:2 }}</td>
+        <td class="text-end">{{ expense.amount_usd|floatformat:2 }}</td>
+        <td></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">No expenses found.</td></tr>
+    {% endfor %}
+</tbody>
+</table>
+
+<!-- Summary totals -->
+
+<table class="table table-bordered table-sm w-auto">
+    <tr><th></th><th>AED</th><th>USD</th></tr>
+    <tr>
+      <th>Total Sales (with VAT)</th>
+      <td>{{ total_sales_aed|floatformat:2 }}</td>
+      <td>{{ total_sales_usd|floatformat:2 }}</td>
+    </tr>
+    <tr>
+      <th>Total Purchases (with VAT)</th>
+      <td>{{ total_purchases_aed|floatformat:2 }}</td>
+      <td>{{ total_purchases_usd|floatformat:2 }}</td>
+    </tr>
+    <tr>
+      <th>Total Expenses</th>
+      <td>{{ total_expenses_aed|floatformat:2 }}</td>
+      <td>{{ total_expenses_usd|floatformat:2 }}</td>
+    </tr>
+    <tr>
+      <th>Profit</th>
+      <td><b>{{ profit_aed|floatformat:2 }}</b></td>
+      <td><b>{{ profit_usd|floatformat:2 }}</b></td>
+    </tr>
+    <tr>
+      <th>VAT Collected</th>
+      <td>{{ vat_collected_aed|floatformat:2 }}</td>
+      <td>{{ vat_collected_usd|floatformat:2 }}</td>
+    </tr>
+    <tr>
+      <th>VAT Paid</th>
+      <td>{{ vat_paid_aed|floatformat:2 }}</td>
+      <td>{{ vat_paid_usd|floatformat:2 }}</td>
+    </tr>
+    <tr>
+      <th>Corporate Tax</th>
+      <td>{{ corp_tax_aed|floatformat:2 }}</td>
+      <td>{{ corp_tax_usd|floatformat:2 }}</td>
+    </tr>
+</table>
+{% endblock %}

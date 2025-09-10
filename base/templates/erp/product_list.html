@@ -1,0 +1,38 @@
+{% extends 'erp/base.html' %}
+{% load static %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Product List</h2>
+    <a href="{% url 'product-item-add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add Product Item
+    </a>
+</div>
+
+<table>
+  <tr>
+    <th>Product</th>
+    <th>Type</th>
+    <th>Grade</th>
+    <th>Size</th>
+    <th>Unit</th>
+    <th>Weight</th>
+    <th></th> <!-- For Delete button -->
+  </tr>
+  {% for p in items %}
+  <tr>
+    <td>{{ p.grade.product_type.product.name }}</td>
+    <td>{{ p.grade.product_type.type_name }}</td>
+    <td>{{ p.grade.grade }}</td>
+    <td>{{ p.size }}</td>
+    <td>{{ p.unit }}</td>
+    <td>{{ p.weight_kg_each }}</td>
+    <td>
+        <a href="{% url 'product-item-delete' p.id %}" class="btn btn-sm btn-danger"
+           onclick="return confirm('Are you sure you want to delete this product item?');">
+            <i class="bi bi-trash"></i> Delete
+        </a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

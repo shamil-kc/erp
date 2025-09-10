@@ -1,0 +1,244 @@
+from django.db import models
+from django.utils import timezone
+
+class Product(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+class ProductType(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    type_name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f"{self.product.name} - {self.type_name}"
+
+class ProductGrade(models.Model):
+    product_type = models.ForeignKey(ProductType, on_delete=models.CASCADE)
+    grade = models.CharField(max_length=20)
+
+    def __str__(self):
+        return f"{self.product_type} - {self.grade}"
+
+class ProductItem(models.Model):
+    grade = models.ForeignKey(ProductGrade, on_delete=models.CASCADE)
+    size = models.FloatField()
+    unit = models.CharField(max_length=20, default='PCs')
+    weight_kg_each = models.FloatField()
+
+    def __str__(self):
+        return f"{self.grade} - Size {self.size}"
+
+class PurchaseInvoice(models.Model):
+    invoice_no = models.CharField(max_length=50, unique=True)
+    supplier = models.CharField(max_length=100, blank=True, null=True)  # Or FK if you want!
+    purchase_date = models.DateField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, null=True)
+
+    vat_amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_with_vat_usd = models.DecimalField(max_digits=13, decimal_places=2, default=0)
+    vat_amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_with_vat_aed = models.DecimalField(max_digits=13, decimal_places=2, default=0)
+
+    def __str__(self):
+        return f"Invoice {self.invoice_no}"
+
+    def calculate_totals(self):
+        total_usd = sum([item.amount_usd for item in self.purchase_items.all()])
+        total_aed = sum([item.amount_aed for item in self.purchase_items.all()])
+        tax = Tax.objects.filter(active=True).first()
+        vat_usd = total_usd * (tax.vat_percent / 100) if tax else 0
+        vat_aed = total_aed * (tax.vat_percent / 100) if tax else 0
+        self.vat_amount_usd = vat_usd
+        self.total_with_vat_usd = total_usd + vat_usd
+        self.vat_amount_aed = vat_aed
+        self.total_with_vat_aed = total_aed + vat_aed
+        PurchaseInvoice.objects.filter(pk=self.pk).update(
+            vat_amount_usd=vat_usd,
+            total_with_vat_usd=total_usd + vat_usd,
+            vat_amount_aed=vat_aed,
+            total_with_vat_aed=total_aed + vat_aed
+        )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.calculate_totals()
+
+class Tax(models.Model):
+    name = models.CharField(max_length=100, default="Default Taxes")
+    vat_percent = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
+    corporate_tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=9.00)
+    custom_duty_percent = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
+    active = models.BooleanField(default=True)
+    def __str__(self):
+        return f"{self.name}"
+
+class PurchaseItem(models.Model):
+    invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='purchase_items')
+    item = models.ForeignKey(ProductItem, on_delete=models.CASCADE)
+    qty = models.PositiveIntegerField()
+    unit_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
+    shipping_per_unit_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shipping_per_unit_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    factors = models.CharField(max_length=100, blank=True, null=True)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    tax = models.ForeignKey(Tax, on_delete=models.PROTECT,
+                            related_name="purchase_items")
+
+    @property
+    def vat_amount_usd(self):
+        # Use the related Tax instance to access the VAT percent
+        vat_rate = self.tax.vat_percent if self.tax is not None else 0
+        total_price = self.unit_price_usd * self.qty
+        return total_price * (vat_rate / 100)
+
+    @property
+    def vat_amount_aed(self):
+        vat_rate = self.tax.vat_percent if self.tax is not None else 0
+        total_price = self.unit_price_aed * self.qty
+        return total_price * (vat_rate / 100)
+
+    def save(self, *args, **kwargs):
+        self.amount_usd = (self.unit_price_usd + self.shipping_per_unit_usd) * self.qty
+        self.amount_aed = (self.unit_price_aed + self.shipping_per_unit_aed) * self.qty
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.qty}x {self.item} @ {self.unit_price_usd}"
+
+
+
+class SaleInvoice(models.Model):
+    invoice_no = models.CharField(max_length=50, unique=True)
+    sale_date = models.DateField(default=timezone.now)
+    customer_name = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    vat_amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_with_vat_usd = models.DecimalField(max_digits=13, decimal_places=2, default=0)
+    vat_amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_with_vat_aed = models.DecimalField(max_digits=13, decimal_places=2, default=0)
+
+    def calculate_totals(self):
+        # These fields must exist on your SaleItem model!
+        total_usd = sum([item.sale_price_usd for item in self.sale_items.all()])
+        total_aed = sum([item.sale_price_aed for item in self.sale_items.all()])
+        tax = Tax.objects.filter(active=True).first()
+        vat_usd = total_usd * (tax.vat_percent / 100) if tax else 0
+        vat_aed = total_aed * (tax.vat_percent / 100) if tax else 0
+        self.vat_amount_usd = vat_usd
+        self.total_with_vat_usd = total_usd + vat_usd
+        self.vat_amount_aed = vat_aed
+        self.total_with_vat_aed = total_aed + vat_aed
+        # Only save if object already exists to avoid recursion
+        SaleInvoice.objects.filter(pk=self.pk).update(
+            vat_amount_usd=vat_usd,
+            total_with_vat_usd=total_usd + vat_usd,
+            vat_amount_aed=vat_aed,
+            total_with_vat_aed=total_aed + vat_aed
+        )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Avoid infinite recursion: only recalculate on update
+        self.calculate_totals()
+
+    def __str__(self):
+        return f"Invoice {self.invoice_no}"
+
+
+class SaleItem(models.Model):
+    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='sale_items')
+    item = models.ForeignKey(ProductItem, on_delete=models.CASCADE)
+    qty = models.PositiveIntegerField()
+    sale_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    sale_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2,
+                                     default=0)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+
+    shipping_usd = models.DecimalField(max_digits=12, decimal_places=2,
+                                       default=0)
+    shipping_aed = models.DecimalField(max_digits=12, decimal_places=2,
+                                       default=0)
+
+    def save(self, *args, **kwargs):
+        self.amount_usd = self.qty * self.sale_price_usd
+        self.amount_aed = self.qty * self.sale_price_aed
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.qty}x {self.item} @ {self.sale_price_usd}"
+
+    @property
+    def total_amount_usd(self):
+        return (self.sale_price_usd * self.qty) + self.shipping_usd
+
+    @property
+    def total_amount_aed(self):
+        return (self.sale_price_aed * self.qty) + self.shipping_aed
+
+
+
+class ExpenseType(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Expense(models.Model):
+    type = models.ForeignKey(ExpenseType, on_delete=models.CASCADE)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    date = models.DateField(default=timezone.now)
+    notes = models.CharField(max_length=250, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.type.name} AED {self.amount_aed} / USD {self.amount_usd} on {self.date}"
+
+
+class Designation(models.Model):
+    title = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.title
+
+
+class Account(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    designation = models.ForeignKey(Designation, on_delete=models.SET_NULL,
+                                    null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+
+class SalaryEntry(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    entry_type = models.CharField(max_length=25, choices=[
+        ('salary', 'Salary'),
+        ('bonus', 'Bonus'),
+        ('reimbursement', 'Reimbursement')
+    ])
+    date = models.DateField(default=timezone.now)
+    notes = models.CharField(max_length=250, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.account.name} {self.entry_type}: AED {self.amount_aed}, USD {self.amount_usd}"
+
+
+
+
+
+
