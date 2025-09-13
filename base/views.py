@@ -6,6 +6,7 @@ from .models import (Product, ProductType, ProductGrade, ProductItem,
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 import datetime
 from django.utils.timezone import now
+from collections import defaultdict
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -17,11 +18,6 @@ from collections import defaultdict
 def product_list(request):
     items = ProductItem.objects.select_related('grade__product_type__product').all()
     return render(request, 'erp/product_list.html', {'items': items})
-
-
-from django.db.models import Sum
-from django.shortcuts import render
-from .models import ProductItem, PurchaseItem, SaleItem
 
 def inventory_report(request):
     items = ProductItem.objects.all()
@@ -140,12 +136,6 @@ def generate_invoice(request, invoice_id):
     return render(request, 'erp/invoice.html', {'invoice': invoice})
 
 
-from decimal import Decimal
-from django.db.models import Sum, F, ExpressionWrapper, DecimalField
-import datetime
-from django.shortcuts import render
-from .models import SaleInvoice, PurchaseInvoice, Expense, Tax
-
 def profit_and_corporate_tax_report(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -261,7 +251,7 @@ def product_item_add(request):
     })
 
 
-from collections import defaultdict
+
 from django.shortcuts import render
 from django.db.models import Sum
 import datetime
@@ -435,6 +425,7 @@ def purchase_invoice_add(request):
                 shipping_per_unit_usd=shipping_usd,
                 shipping_per_unit_aed=shipping_aed,
                 factors=factors,
+                tax = Tax.objects.filter(active=True).first()
             )
         invoice.calculate_totals()
         return redirect('purchase-report')

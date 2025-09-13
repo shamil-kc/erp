@@ -1,8 +1,9 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
+    path('api/', include('base.api.urls')),
     path('products/', views.product_list, name='product-list'),
     path('inventory/', views.inventory_report, name='inventory-report'),
     path('sales/', views.sales_report, name='sales-report'),
