@@ -51,6 +51,21 @@ class ProductGradeViewSet(viewsets.ModelViewSet):
     serializer_class = ProductGradeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def create(self, request, *args, **kwargs):
+        product_type_id = request.data.get('product_type')
+        grade = request.data.get('grade', '').strip()
+        if product_type_id and grade:
+            exists = ProductGrade.objects.filter(
+                product_type_id=product_type_id,
+                grade__iexact=grade
+            ).exists()
+            if exists:
+                return Response(
+                    {"detail": f"ProductGrade with product_type ID {product_type_id} and grade '{grade}' already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        return super().create(request, *args, **kwargs)
+
 class ProductItemViewSet(viewsets.ModelViewSet):
     queryset = ProductItem.objects.all()
     serializer_class = ProductItemSerializer
