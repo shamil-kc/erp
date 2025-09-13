@@ -19,10 +19,22 @@ class ProductGradeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProductItemSerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    product_type = serializers.SerializerMethodField()
+    grade = ProductGradeSerializer(read_only=True)
+
     product_full_name = serializers.SerializerMethodField()
     class Meta:
         model = ProductItem
         fields = '__all__'
+
+    def get_product(self, obj):
+        product = obj.grade.product_type.product
+        return ProductSerializer(product).data if product else None
+
+    def get_product_type(self, obj):
+        product_type = obj.grade.product_type
+        return ProductTypeSerializer(product_type).data if product_type else None
 
     def get_product_full_name(self, obj):
         tree = obj.grade
@@ -30,7 +42,6 @@ class ProductItemSerializer(serializers.ModelSerializer):
         product_type_name = tree.product_type.type_name if tree and tree.product_type else ''
         grade_name = tree.grade if tree else ''
         size = obj.size
-
         return f"{product_name} - {product_type_name} - {grade_name} - Size {size}"
 
 class ProductItemCreateSerializer(serializers.Serializer):
