@@ -19,9 +19,19 @@ class ProductGradeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProductItemSerializer(serializers.ModelSerializer):
+    product_full_name = serializers.SerializerMethodField()
     class Meta:
         model = ProductItem
         fields = '__all__'
+
+    def get_product_full_name(self, obj):
+        tree = obj.grade
+        product_name = tree.product_type.product.name if tree and tree.product_type and tree.product_type.product else ''
+        product_type_name = tree.product_type.type_name if tree and tree.product_type else ''
+        grade_name = tree.grade if tree else ''
+        size = obj.size
+
+        return f"{product_name} - {product_type_name} - {grade_name} - Size {size}"
 
 class ProductItemCreateSerializer(serializers.Serializer):
     product = serializers.CharField()
