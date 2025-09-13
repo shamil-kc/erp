@@ -71,16 +71,6 @@ class ProductItemViewSet(viewsets.ModelViewSet):
     serializer_class = ProductItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
-    queryset = PurchaseInvoice.objects.all()
-    serializer_class = PurchaseInvoiceSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-class PurchaseItemViewSet(viewsets.ModelViewSet):
-    queryset = PurchaseItem.objects.all()
-    serializer_class = PurchaseItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
 class ProductItemBulkCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -92,6 +82,16 @@ class ProductItemBulkCreateAPIView(APIView):
                 "created_count": len(created_items)
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
+    queryset = PurchaseInvoice.objects.all()
+    serializer_class = PurchaseInvoiceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class PurchaseItemViewSet(viewsets.ModelViewSet):
+    queryset = PurchaseItem.objects.all()
+    serializer_class = PurchaseItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
