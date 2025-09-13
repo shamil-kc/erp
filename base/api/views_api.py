@@ -18,10 +18,33 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def create(self, request, *args, **kwargs):
+        product_name = request.data.get('name', '').strip()
+        if Product.objects.filter(name__iexact=product_name).exists():
+            return Response({
+                "detail": f"Product with name '{product_name}' already exists."},
+                status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
+
 class ProductTypeViewSet(viewsets.ModelViewSet):
     queryset = ProductType.objects.all()
     serializer_class = ProductTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        product_id = request.data.get('product')
+        type_name = request.data.get('type_name', '').strip()
+        if product_id and type_name:
+            exists = ProductType.objects.filter(
+                product_id=product_id,
+                type_name__iexact=type_name
+            ).exists()
+            if exists:
+                return Response(
+                    {"detail": f"ProductType with product ID {product_id} and type '{type_name}' already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        return super().create(request, *args, **kwargs)
 
 class ProductGradeViewSet(viewsets.ModelViewSet):
     queryset = ProductGrade.objects.all()
