@@ -27,4 +27,6 @@ urlpatterns = [
     path('', include(router.urls)),
     path('inventory-report/', InventoryReportAPIView.as_view()),
     path('api-token-auth/', views.obtain_auth_token),
+    path('product/bulk-create/', ProductItemBulkCreateAPIView.as_view(),
+         name='productitem-bulk-create'),
 ]

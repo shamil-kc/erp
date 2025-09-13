@@ -23,6 +23,34 @@ class ProductItemSerializer(serializers.ModelSerializer):
         model = ProductItem
         fields = '__all__'
 
+class ProductItemCreateSerializer(serializers.Serializer):
+    product = serializers.CharField()
+    product_type = serializers.CharField()
+    grade = serializers.CharField()
+    size = serializers.FloatField()
+    unit = serializers.CharField()
+    weight_kg_each = serializers.FloatField()
+
+class ProductItemBulkCreateSerializer(serializers.Serializer):
+    items = ProductItemCreateSerializer(many=True)
+
+    def create(self, validated_data):
+        items_data = validated_data['items']
+        created_items = []
+        for item_data in items_data:
+            prod_obj, _ = Product.objects.get_or_create(name=item_data['product'].strip())
+            prodtype_obj, _ = ProductType.objects.get_or_create(product=prod_obj, type_name=item_data['product_type'].strip())
+            grade_obj, _ = ProductGrade.objects.get_or_create(product_type=prodtype_obj, grade=item_data['grade'].strip())
+            product_item_obj, created = ProductItem.objects.get_or_create(
+                grade=grade_obj,
+                size=item_data['size'],
+                unit=item_data['unit'],
+                weight_kg_each=item_data['weight_kg_each'],
+            )
+            created_items.append(product_item_obj)
+        return created_items
+
+
 class PurchaseItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseItem

@@ -1,7 +1,5 @@
-# views_api.py
-
-from rest_framework import viewsets, permissions
-from rest_framework.permissions import  AllowAny
+from rest_framework import viewsets, permissions, status
+from rest_framework.views import APIView
 from base.models import *
 from .serializers import *
 
@@ -44,6 +42,19 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
     queryset = PurchaseItem.objects.all()
     serializer_class = PurchaseItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+class ProductItemBulkCreateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ProductItemBulkCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            created_items = serializer.save()
+            return Response({
+                "created_count": len(created_items)
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
     queryset = SaleInvoice.objects.all()
