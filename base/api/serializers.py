@@ -86,6 +86,7 @@ class ProductItemUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def update(self, instance, validated_data):
+        print("working")
         # Related model edits
         grade_obj = instance.grade  # ProductGrade object
         prodtype_obj = grade_obj.product_type  # ProductType object

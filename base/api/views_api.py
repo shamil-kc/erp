@@ -136,8 +136,12 @@ class ProductGradeViewSet(viewsets.ModelViewSet):
 
 class ProductItemViewSet(viewsets.ModelViewSet):
     queryset = ProductItem.objects.all()
-    serializer_class = ProductItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ['update', 'partial_update']:
+            return ProductItemUpdateSerializer
+        return ProductItemSerializer
 
 class ProductItemBulkCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
