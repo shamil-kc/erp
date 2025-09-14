@@ -120,10 +120,19 @@ class ProductItemBulkCreateAPIView(APIView):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
     queryset = PurchaseInvoice.objects.all()
-    serializer_class = PurchaseInvoiceSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PurchaseInvoiceCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return PurchaseInvoiceUpdateSerializer
+        return PurchaseInvoiceSerializer
+
+
 
 class PurchaseItemViewSet(viewsets.ModelViewSet):
     queryset = PurchaseItem.objects.all()
@@ -131,8 +140,8 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update']:
-            return ProductItemUpdateSerializer
-        return ProductItemSerializer
+            return PurchaseItemUpdateSerializer
+        return PurchaseItemSerializer
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):

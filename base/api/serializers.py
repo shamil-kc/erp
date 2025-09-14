@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from base.models import *
 from rest_framework import permissions
+from django.db import transaction
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -134,6 +135,121 @@ class PurchaseInvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseInvoice
         fields = '__all__'
+
+
+class PurchaseItemNestedSerializer(serializers.Serializer):
+    item = serializers.IntegerField()
+    qty = serializers.IntegerField()
+    unit_price_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
+    unit_price_aed = serializers.DecimalField(max_digits=12, decimal_places=2)
+    shipping_per_unit_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    shipping_per_unit_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    factors = serializers.CharField(allow_blank=True, required=False)
+    tax = serializers.IntegerField(required=False)
+
+
+class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
+    items = PurchaseItemNestedSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = PurchaseInvoice
+        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes', 'items']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        with transaction.atomic():
+            try:
+                invoice = PurchaseInvoice.objects.create(**validated_data)
+                for item in items_data:
+                    PurchaseItem.objects.create(
+                        invoice=invoice,
+                        item_id=item['item'],
+                        qty=item['qty'],
+                        unit_price_usd=item['unit_price_usd'],
+                        unit_price_aed=item['unit_price_aed'],
+                        shipping_per_unit_usd=item.get('shipping_per_unit_usd', 0),
+                        shipping_per_unit_aed=item.get('shipping_per_unit_aed', 0),
+                        factors=item.get('factors', ''),
+                        tax_id=item.get('tax')
+                    )
+                invoice.calculate_totals()
+            except Exception as e:
+                transaction.set_rollback(True)
+                raise e
+        return invoice
+
+class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
+    items = PurchaseItemNestedSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = PurchaseInvoice
+        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes', 'items']
+
+    from django.db import transaction
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items',
+                                        None)  # match nested field name 'items'
+
+        with transaction.atomic():
+            # Update invoice fields
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+
+            if items_data is not None:
+                # Use correct related_name 'purchase_items'
+                existing_item_ids = [item.id for item in
+                                     instance.purchase_items.all()]
+                sent_item_ids = [item.get('id') for item in items_data if
+                                 item.get('id')]
+
+                # Delete removed items
+                for item_id in existing_item_ids:
+                    if item_id not in sent_item_ids:
+                        PurchaseItem.objects.filter(id=item_id).delete()
+
+                # Create or update items
+                for item_data in items_data:
+                    item_id = item_data.get('id', None)
+                    if item_id:
+                        # Update existing item
+                        item_instance = PurchaseItem.objects.get(id=item_id,
+                                                                 invoice=instance)
+                        for attr, value in item_data.items():
+                            if attr == 'id':
+                                continue
+                            if attr == 'item':
+                                setattr(item_instance, 'item_id', value)
+                            elif attr == 'tax':
+                                setattr(item_instance, 'tax_id', value)
+                            else:
+                                setattr(item_instance, attr, value)
+                        item_instance.save()
+                    else:
+                        # Create new item
+                        PurchaseItem.objects.create(invoice=instance,
+                            item_id=item_data.get('item'),
+                            qty=item_data.get('qty'),
+                            unit_price_usd=item_data.get('unit_price_usd'),
+                            unit_price_aed=item_data.get('unit_price_aed'),
+                            shipping_per_unit_usd=item_data.get(
+                                'shipping_per_unit_usd', 0),
+                            shipping_per_unit_aed=item_data.get(
+                                'shipping_per_unit_aed', 0),
+                            factors=item_data.get('factors', ''),
+                            tax_id=item_data.get('tax'))
+
+            instance.calculate_totals()
+
+        return instance
+
+
+class PurchaseItemUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseItem
+        fields = '__all__'
+
 
 class SaleItemSerializer(serializers.ModelSerializer):
     class Meta:
