@@ -26,6 +26,8 @@ class ProductItem(models.Model):
     size = models.FloatField()
     unit = models.CharField(max_length=20, default='PCs')
     weight_kg_each = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     def __str__(self):
         return f"{self.grade} - Size {self.size}"
