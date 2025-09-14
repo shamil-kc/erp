@@ -41,12 +41,15 @@ INSTALLED_APPS = [
     'nested_admin',
     'rest_framework',
     'rest_framework.authtoken',
+    'corsheaders',
 
 
     'base',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -156,4 +159,6 @@ REST_FRAMEWORK = {
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 

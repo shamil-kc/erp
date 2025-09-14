@@ -275,11 +275,96 @@ class SaleItemSerializer(serializers.ModelSerializer):
         model = SaleItem
         fields = '__all__'
 
+class SaleItemNestedSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    item = serializers.PrimaryKeyRelatedField(queryset=ProductItem.objects.all())
+    qty = serializers.IntegerField()
+    sale_price_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
+    sale_price_aed = serializers.DecimalField(max_digits=12, decimal_places=2)
+    shipping_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    shipping_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+
+
 class SaleInvoiceSerializer(serializers.ModelSerializer):
     sale_items = SaleItemSerializer(many=True, read_only=True)
     class Meta:
         model = SaleInvoice
         fields = '__all__'
+
+class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
+    items = SaleItemNestedSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = SaleInvoice
+        fields = ['invoice_no', 'customer_name', 'sale_date', 'items']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        with transaction.atomic():
+            invoice = SaleInvoice.objects.create(**validated_data)
+            for item in items_data:
+                SaleItem.objects.create(
+                    invoice=invoice,
+                    item=item['item'],
+                    qty=item['qty'],
+                    sale_price_usd=item['sale_price_usd'],
+                    sale_price_aed=item['sale_price_aed'],
+                    shipping_usd=item.get('shipping_usd', 0),
+                    shipping_aed=item.get('shipping_aed', 0),
+                )
+            invoice.calculate_totals()
+        return invoice
+
+class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
+    items = SaleItemNestedSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = SaleInvoice
+        fields = ['invoice_no', 'customer_name', 'sale_date', 'items']
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+
+            if items_data is not None:
+                existing_ids = [item.id for item in instance.sale_items.all()]
+                sent_ids = [item.get('id') for item in items_data if item.get('id')]
+
+                # Delete removed items
+                for id in existing_ids:
+                    if id not in sent_ids:
+                        SaleItem.objects.filter(id=id).delete()
+
+                for item_data in items_data:
+                    item_id = item_data.get('id', None)
+                    if item_id:
+                        item_instance = SaleItem.objects.get(id=item_id, invoice=instance)
+                        for attr, value in item_data.items():
+                            if attr == 'id':
+                                continue
+                            if attr == 'item':
+                                setattr(item_instance, 'item_id', value.id if hasattr(value, 'id') else value)
+                            else:
+                                setattr(item_instance, attr, value)
+                        item_instance.save()
+                    else:
+                        SaleItem.objects.create(
+                            invoice=instance,
+                            item=item_data['item'],
+                            qty=item_data['qty'],
+                            sale_price_usd=item_data['sale_price_usd'],
+                            sale_price_aed=item_data['sale_price_aed'],
+                            shipping_usd=item_data.get('shipping_usd', 0),
+                            shipping_aed=item_data.get('shipping_aed', 0),
+                        )
+
+            instance.calculate_totals()
+        return instance
+
 
 class TaxSerializer(serializers.ModelSerializer):
     class Meta:

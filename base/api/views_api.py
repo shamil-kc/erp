@@ -175,8 +175,15 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
     queryset = SaleInvoice.objects.all()
-    serializer_class = SaleInvoiceSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return SaleInvoiceCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return SaleInvoiceUpdateSerializer
+        return SaleInvoiceSerializer  # your existing read serializer
+
 
 class SaleItemViewSet(viewsets.ModelViewSet):
     queryset = SaleItem.objects.all()
