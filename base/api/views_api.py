@@ -9,6 +9,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework import generics, permissions
 from django.contrib.auth.models import User
+from base.api.pagination import CustomPagination
 
 class CustomAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
@@ -220,9 +221,11 @@ from rest_framework.response import Response
 
 class InventoryReportAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination
+
     def get(self, request):
-        # Same logic as your Django view, just return JSON
         items = ProductItem.objects.all()
+
         purchased_qty_data = dict(
             PurchaseItem.objects.values_list('item_id')
             .annotate(s=Sum('qty')).values_list('item_id', 's')
@@ -231,6 +234,8 @@ class InventoryReportAPIView(APIView):
             SaleItem.objects.values_list('item_id')
             .annotate(s=Sum('qty')).values_list('item_id', 's')
         )
+
+        # Calculate stock data list
         result = []
         for item in items:
             purchased = purchased_qty_data.get(item.id, 0)
@@ -242,4 +247,13 @@ class InventoryReportAPIView(APIView):
                 'sold': sold,
                 'stock': stock,
             })
+
+        # Paginate result list
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(result, request)
+        if page is not None:
+            return paginator.get_paginated_response(page)
+
+        # If no pagination applied, return full list
         return Response(result)
+
