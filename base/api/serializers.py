@@ -52,6 +52,58 @@ class ProductItemCreateSerializer(serializers.Serializer):
     unit = serializers.CharField()
     weight_kg_each = serializers.FloatField()
 
+
+class ProductItemUpdateSerializer(serializers.ModelSerializer):
+    product = serializers.CharField(write_only=True, required=False)
+    product_type = serializers.CharField(write_only=True, required=False)
+    grade = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = ProductItem
+        fields = [
+            'id', 'product', 'product_type', 'grade',
+            'size', 'unit', 'weight_kg_each', 'grade'  # keep original FK for backward compatibility
+        ]
+
+    def update(self, instance, validated_data):
+        # Related model edits
+        grade_obj = instance.grade  # ProductGrade object
+        prodtype_obj = grade_obj.product_type  # ProductType object
+        prod_obj = prodtype_obj.product  # Product object
+
+        # Update Product name if provided
+        product_name = validated_data.pop('product', None)
+        if product_name:
+            product_name = product_name.strip()
+            if prod_obj.name != product_name:
+                # Check if name already exists; you could also enforce unique here
+                prod_obj.name = product_name
+                prod_obj.save()
+
+        # Update ProductType name if provided
+        product_type_name = validated_data.pop('product_type', None)
+        if product_type_name:
+            product_type_name = product_type_name.strip()
+            if prodtype_obj.type_name != product_type_name:
+                prodtype_obj.type_name = product_type_name
+                prodtype_obj.save()
+
+        # Update Grade if provided
+        grade_name = validated_data.pop('grade', None)
+        if grade_name:
+            grade_name = grade_name.strip()
+            if grade_obj.grade != grade_name:
+                grade_obj.grade = grade_name
+                grade_obj.save()
+
+        # Update ProductItem fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+
+
 class ProductItemBulkCreateSerializer(serializers.Serializer):
     items = ProductItemCreateSerializer(many=True)
 

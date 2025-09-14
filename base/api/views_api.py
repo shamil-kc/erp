@@ -23,8 +23,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         if Product.objects.filter(name__iexact=product_name).exists():
             return Response({
                 "detail": f"Product with name '{product_name}' already exists."},
-                status=status.HTTP_400_BAD_REQUEST)
+                status=status.HTTP_409_CONFLICT)
         return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        product_name = request.data.get('name', '').strip()
+        product_id = self.get_object().id
+        if Product.objects.filter(name__iexact=product_name).exclude(
+                id=product_id).exists():
+            return Response({
+                "detail": f"Product with name '{product_name}' already exists."},
+                status=status.HTTP_409_CONFLICT)
+        return super().update(request, *args, **kwargs)
 
 class ProductTypeViewSet(viewsets.ModelViewSet):
     queryset = ProductType.objects.all()
@@ -42,9 +52,22 @@ class ProductTypeViewSet(viewsets.ModelViewSet):
             if exists:
                 return Response(
                     {"detail": f"ProductType with product ID {product_id} and type '{type_name}' already exists."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_409_CONFLICT
                 )
         return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        product_id = request.data.get('product')
+        type_name = request.data.get('type_name', '').strip()
+        pt_id = self.get_object().id
+        if product_id and type_name:
+            exists = ProductType.objects.filter(product_id=product_id,
+                type_name__iexact=type_name).exclude(id=pt_id).exists()
+            if exists:
+                return Response({
+                    "detail": f"ProductType with product ID {product_id} and type '{type_name}' already exists."},
+                    status=status.HTTP_409_CONFLICT)
+        return super().update(request, *args, **kwargs)
 
 class ProductGradeViewSet(viewsets.ModelViewSet):
     queryset = ProductGrade.objects.all()
@@ -62,9 +85,23 @@ class ProductGradeViewSet(viewsets.ModelViewSet):
             if exists:
                 return Response(
                     {"detail": f"ProductGrade with product_type ID {product_type_id} and grade '{grade}' already exists."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_409_CONFLICT
                 )
         return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        product_type_id = request.data.get('product_type')
+        grade = request.data.get('grade', '').strip()
+        pg_id = self.get_object().id
+        if product_type_id and grade:
+            exists = ProductGrade.objects.filter(
+                product_type_id=product_type_id, grade__iexact=grade).exclude(
+                id=pg_id).exists()
+            if exists:
+                return Response({
+                    "detail": f"ProductGrade with product_type ID {product_type_id} and grade '{grade}' already exists."},
+                    status=status.HTTP_409_CONFLICT)
+        return super().update(request, *args, **kwargs)
 
 class ProductItemViewSet(viewsets.ModelViewSet):
     queryset = ProductItem.objects.all()
@@ -90,8 +127,12 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
 
 class PurchaseItemViewSet(viewsets.ModelViewSet):
     queryset = PurchaseItem.objects.all()
-    serializer_class = PurchaseItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ['update', 'partial_update']:
+            return ProductItemUpdateSerializer
+        return ProductItemSerializer
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
