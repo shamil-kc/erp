@@ -211,17 +211,21 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-class AccountViewSet(viewsets.ModelViewSet):
-    queryset = Account.objects.all()
-    serializer_class = AccountSerializer
-    permission_classes = [IsAdminUser] # Only admin manage accounts
-
 class SalaryEntryViewSet(viewsets.ModelViewSet):
     queryset = SalaryEntry.objects.all()
     serializer_class = SalaryEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
-from rest_framework.views import APIView
-from rest_framework.response import Response
+
+class AccountViewSet(viewsets.ModelViewSet):
+    queryset = Account.objects.all()
+    serializer_class = AccountSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class DesignationViewSet(viewsets.ModelViewSet):
+    queryset = Designation.objects.all()
+    serializer_class = DesignationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
 
 class InventoryReportAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]

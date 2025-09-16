@@ -17,8 +17,9 @@ router.register(r'sale-items', SaleItemViewSet)
 router.register(r'taxes', TaxViewSet)
 router.register(r'expense-types', ExpenseTypeViewSet)
 router.register(r'expenses', ExpenseViewSet)
-router.register(r'accounts', AccountViewSet)
-router.register(r'salary-entries', SalaryEntryViewSet)
+router.register('salary-entries', SalaryEntryViewSet)
+router.register('accounts', AccountViewSet)
+router.register('designations', DesignationViewSet)
 
 # For reports:
 from .views_api import InventoryReportAPIView

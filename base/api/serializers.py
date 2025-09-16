@@ -378,18 +378,46 @@ class ExpenseTypeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ExpenseSerializer(serializers.ModelSerializer):
-    type = ExpenseTypeSerializer()
+    type = ExpenseTypeSerializer(read_only=True)  # nested read for output
+    type_id = serializers.PrimaryKeyRelatedField(
+        queryset=ExpenseType.objects.all(), write_only=True, source='type'
+        # maps to model field 'type'
+    )
     class Meta:
         model = Expense
+        fields = ['id', 'type', 'type_id', 'amount_aed', 'amount_usd', 'date', 'notes']
+
+
+class DesignationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Designation
         fields = '__all__'
 
 class AccountSerializer(serializers.ModelSerializer):
+    designation = DesignationSerializer(read_only=True)
+    designation_id = serializers.PrimaryKeyRelatedField(
+        queryset=Designation.objects.all(),
+        source='designation',
+        write_only=True,
+        required=False
+    )
+
     class Meta:
         model = Account
-        fields = '__all__'
+        fields = ['id', 'name', 'designation', 'designation_id', 'notes']
 
 class SalaryEntrySerializer(serializers.ModelSerializer):
-    account = AccountSerializer()
+    account = AccountSerializer(read_only=True)
+    account_id = serializers.PrimaryKeyRelatedField(
+        queryset=Account.objects.all(),
+        source='account',
+        write_only=True
+    )
+
     class Meta:
         model = SalaryEntry
-        fields = '__all__'
+        fields = [
+            'id', 'account', 'account_id', 'amount_aed', 'amount_usd',
+            'entry_type', 'date', 'notes'
+        ]
+
