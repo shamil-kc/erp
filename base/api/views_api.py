@@ -199,7 +199,7 @@ class SaleItemViewSet(viewsets.ModelViewSet):
 class TaxViewSet(viewsets.ModelViewSet):
     queryset = Tax.objects.all()
     serializer_class = TaxSerializer
-    permission_classes = [IsAdminUser] # Only admin can update taxes
+    permission_classes = [permissions.IsAuthenticated]
 
 class ExpenseTypeViewSet(viewsets.ModelViewSet):
     queryset = ExpenseType.objects.all()
