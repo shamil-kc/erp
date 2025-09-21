@@ -179,10 +179,14 @@ class PurchaseItemNestedSerializer(serializers.Serializer):
 
 class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
-
+    discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
+                                            required=False, default=0)
+    discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
+                                            required=False, default=0)
     class Meta:
         model = PurchaseInvoice
-        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes', 'items']
+        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes',
+                  'items', 'discount_usd', 'discount_aed']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
@@ -209,10 +213,14 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
 
 class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
-
+    discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
+                                            required=False, default=0)
+    discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
+                                            required=False, default=0)
     class Meta:
         model = PurchaseInvoice
-        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes', 'items']
+        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes',
+                  'items', 'discount_usd', 'discount_aed' ]
 
     from django.db import transaction
 
