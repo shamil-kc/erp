@@ -289,9 +289,18 @@ class PurchaseItemUpdateSerializer(serializers.ModelSerializer):
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
+    item = serializers.SerializerMethodField()
     class Meta:
         model = SaleItem
         fields = '__all__'
+
+    def get_item(self, obj):
+        if obj.item:
+            data = {'product_id': obj.item.id,
+                    'product_full_name': ProductItemSerializer().get_product_full_name(
+                        obj.item)}
+            return data
+        return None
 
 class SaleItemNestedSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
