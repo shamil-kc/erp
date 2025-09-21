@@ -294,11 +294,19 @@ class PurchaseSalesReportAPIView(APIView):
         total_purchase_without_vat_usd = total_purchase_with_vat_usd - total_purchase_vat_usd
         total_purchase_without_vat_aed = total_purchase_with_vat_aed - total_purchase_vat_aed
 
+        total_purchase_discount_usd = \
+        purchase_invoices.aggregate(total=Sum('discount_usd'))[
+            'total'] or Decimal('0')
+        total_purchase_discount_aed = \
+        purchase_invoices.aggregate(total=Sum('discount_aed'))[
+            'total'] or Decimal('0')
+
         purchase_ids = list(purchase_invoices.values_list('id', flat=True))
         purchase_shipping_usd = PurchaseItem.objects.filter(invoice_id__in=purchase_ids).aggregate(
             total=Sum('shipping_per_unit_usd'))['total'] or Decimal('0')
         purchase_shipping_aed = PurchaseItem.objects.filter(invoice_id__in=purchase_ids).aggregate(
             total=Sum('shipping_per_unit_aed'))['total'] or Decimal('0')
+
 
         # SALES
         sales_invoices = SaleInvoice.objects.filter(**sales_filters)
@@ -345,6 +353,9 @@ class PurchaseSalesReportAPIView(APIView):
                 "vat_aed": float(total_purchase_vat_aed),
                 "total_shipping_usd": float(purchase_shipping_usd),
                 "total_shipping_aed": float(purchase_shipping_aed),
+                "total_discount_usd": float(total_purchase_discount_usd),
+                "total_discount_aed": float(total_purchase_discount_aed),
+
             },
             "sales": {
                 "total_with_vat_usd": float(total_sales_with_vat_usd),
