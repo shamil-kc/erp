@@ -271,8 +271,22 @@ class PurchaseSalesReportAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        # --- Parse date filters from query params ---
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        purchase_filters = {}
+        sales_filters = {}
+
+        if start_date:
+            purchase_filters['purchase_date__gte'] = start_date
+            sales_filters['sale_date__gte'] = start_date
+        if end_date:
+            purchase_filters['purchase_date__lte'] = end_date
+            sales_filters['sale_date__lte'] = end_date
+
         # PURCHASES
-        purchase_invoices = PurchaseInvoice.objects.all()
+        purchase_invoices = PurchaseInvoice.objects.filter(**purchase_filters)
         total_purchase_with_vat_usd = purchase_invoices.aggregate(total=Sum('total_with_vat_usd'))['total'] or Decimal('0')
         total_purchase_with_vat_aed = purchase_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
         total_purchase_vat_usd = purchase_invoices.aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
@@ -280,12 +294,14 @@ class PurchaseSalesReportAPIView(APIView):
         total_purchase_without_vat_usd = total_purchase_with_vat_usd - total_purchase_vat_usd
         total_purchase_without_vat_aed = total_purchase_with_vat_aed - total_purchase_vat_aed
 
-        # Sum shipping for all PurchaseItems
-        purchase_shipping_usd = PurchaseItem.objects.aggregate(total=Sum('shipping_per_unit_usd'))['total'] or Decimal('0')
-        purchase_shipping_aed = PurchaseItem.objects.aggregate(total=Sum('shipping_per_unit_aed'))['total'] or Decimal('0')
+        purchase_ids = list(purchase_invoices.values_list('id', flat=True))
+        purchase_shipping_usd = PurchaseItem.objects.filter(invoice_id__in=purchase_ids).aggregate(
+            total=Sum('shipping_per_unit_usd'))['total'] or Decimal('0')
+        purchase_shipping_aed = PurchaseItem.objects.filter(invoice_id__in=purchase_ids).aggregate(
+            total=Sum('shipping_per_unit_aed'))['total'] or Decimal('0')
 
         # SALES
-        sales_invoices = SaleInvoice.objects.all()
+        sales_invoices = SaleInvoice.objects.filter(**sales_filters)
         total_sales_with_vat_usd = sales_invoices.aggregate(total=Sum('total_with_vat_usd'))['total'] or Decimal('0')
         total_sales_with_vat_aed = sales_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
         total_sales_vat_usd = sales_invoices.aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
@@ -293,54 +309,62 @@ class PurchaseSalesReportAPIView(APIView):
         total_sales_without_vat_usd = total_sales_with_vat_usd - total_sales_vat_usd
         total_sales_without_vat_aed = total_sales_with_vat_aed - total_sales_vat_aed
 
-        # Sum shipping for all SaleItems
-        sales_shipping_usd = SaleItem.objects.aggregate(total=Sum('shipping_usd'))['total'] or Decimal('0')
-        sales_shipping_aed = SaleItem.objects.aggregate(total=Sum('shipping_aed'))['total'] or Decimal('0')
+        sales_ids = list(sales_invoices.values_list('id', flat=True))
+        sales_shipping_usd = SaleItem.objects.filter(invoice_id__in=sales_ids).aggregate(
+            total=Sum('shipping_usd'))['total'] or Decimal('0')
+        sales_shipping_aed = SaleItem.objects.filter(invoice_id__in=sales_ids).aggregate(
+            total=Sum('shipping_aed'))['total'] or Decimal('0')
 
-        # SALES Discounts
         total_sales_discount_usd = sales_invoices.aggregate(total=Sum('discount_usd'))['total'] or Decimal('0')
         total_sales_discount_aed = sales_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
 
-        # EXPENSES
-        total_expense_usd = Expense.objects.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
-        total_expense_aed = Expense.objects.aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+        # EXPENSES & SALARY (filtering by date if present)
+        expense_filters = {}
+        salary_filters = {}
+        if start_date:
+            expense_filters['date__gte'] = start_date
+            salary_filters['date__gte'] = start_date
+        if end_date:
+            expense_filters['date__lte'] = end_date
+            salary_filters['date__lte'] = end_date
 
-        total_salary_usd = SalaryEntry.objects.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
-        total_salary_aed = SalaryEntry.objects.aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-
+        total_expense_usd = Expense.objects.filter(**expense_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
+        total_expense_aed = Expense.objects.filter(**expense_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+        total_salary_usd = SalaryEntry.objects.filter(**salary_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
+        total_salary_aed = SalaryEntry.objects.filter(**salary_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
         all_expenses_usd = total_expense_usd + total_salary_usd
         all_expenses_aed = total_expense_aed + total_salary_aed
 
         report = {
             "purchase": {
-                "total_with_vat_usd": str(total_purchase_with_vat_usd),
-                "total_with_vat_aed": str(total_purchase_with_vat_aed),
-                "total_without_vat_usd": str(total_purchase_without_vat_usd),
-                "total_without_vat_aed": str(total_purchase_without_vat_aed),
-                "vat_usd": str(total_purchase_vat_usd),
-                "vat_aed": str(total_purchase_vat_aed),
-                "total_shipping_usd": str(purchase_shipping_usd),
-                "total_shipping_aed": str(purchase_shipping_aed),
+                "total_with_vat_usd": float(total_purchase_with_vat_usd),
+                "total_with_vat_aed": float(total_purchase_with_vat_aed),
+                "total_without_vat_usd": float(total_purchase_without_vat_usd),
+                "total_without_vat_aed": float(total_purchase_without_vat_aed),
+                "vat_usd": float(total_purchase_vat_usd),
+                "vat_aed": float(total_purchase_vat_aed),
+                "total_shipping_usd": float(purchase_shipping_usd),
+                "total_shipping_aed": float(purchase_shipping_aed),
             },
             "sales": {
-                "total_with_vat_usd": str(total_sales_with_vat_usd),
-                "total_with_vat_aed": str(total_sales_with_vat_aed),
-                "total_without_vat_usd": str(total_sales_without_vat_usd),
-                "total_without_vat_aed": str(total_sales_without_vat_aed),
-                "vat_usd": str(total_sales_vat_usd),
-                "vat_aed": str(total_sales_vat_aed),
-                "total_shipping_usd": str(sales_shipping_usd),
-                "total_shipping_aed": str(sales_shipping_aed),
-                "total_discount_usd": str(total_sales_discount_usd),
-                "total_discount_aed": str(total_sales_discount_aed),
+                "total_with_vat_usd": float(total_sales_with_vat_usd),
+                "total_with_vat_aed": float(total_sales_with_vat_aed),
+                "total_without_vat_usd": float(total_sales_without_vat_usd),
+                "total_without_vat_aed": float(total_sales_without_vat_aed),
+                "vat_usd": float(total_sales_vat_usd),
+                "vat_aed": float(total_sales_vat_aed),
+                "total_shipping_usd": float(sales_shipping_usd),
+                "total_shipping_aed": float(sales_shipping_aed),
+                "total_discount_usd": float(total_sales_discount_usd),
+                "total_discount_aed": float(total_sales_discount_aed),
             },
             "expenses": {
-                "total_expense_usd": str(total_expense_usd),
-                "total_expense_aed": str(total_expense_aed),
-                "total_salary_usd": str(total_salary_usd),
-                "total_salary_aed": str(total_salary_aed),
-                "all_expenses_usd": str(all_expenses_usd),
-                "all_expenses_aed": str(all_expenses_aed),
+                "total_expense_usd": float(total_expense_usd),
+                "total_expense_aed": float(total_expense_aed),
+                "total_salary_usd": float(total_salary_usd),
+                "total_salary_aed": float(total_salary_aed),
+                "all_expenses_usd": float(all_expenses_usd),
+                "all_expenses_aed": float(all_expenses_aed),
             }
         }
         return Response(report)
