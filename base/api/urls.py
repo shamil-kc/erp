@@ -31,4 +31,5 @@ urlpatterns = [
     path('api-token-auth/users/', UserCreateAPIView.as_view(), name='user-create'),
     path('product/bulk-create/', ProductItemBulkCreateAPIView.as_view(),
          name='productitem-bulk-create'),
-]
+    path('purchase-sales-report/', PurchaseSalesReportAPIView.as_view(),
+         name='purchase-sales-report'), ]

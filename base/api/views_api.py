@@ -265,3 +265,84 @@ class InventoryReportAPIView(APIView):
         # If no pagination applied, return full list
         return Response(result)
 
+
+
+class PurchaseSalesReportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # PURCHASES
+        purchase_invoices = PurchaseInvoice.objects.all()
+        total_purchase_with_vat_usd = purchase_invoices.aggregate(total=Sum('total_with_vat_usd'))['total'] or Decimal('0')
+        total_purchase_with_vat_aed = purchase_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
+        total_purchase_vat_usd = purchase_invoices.aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
+        total_purchase_vat_aed = purchase_invoices.aggregate(total=Sum('vat_amount_aed'))['total'] or Decimal('0')
+        total_purchase_without_vat_usd = total_purchase_with_vat_usd - total_purchase_vat_usd
+        total_purchase_without_vat_aed = total_purchase_with_vat_aed - total_purchase_vat_aed
+
+        # Sum shipping for all PurchaseItems
+        purchase_shipping_usd = PurchaseItem.objects.aggregate(total=Sum('shipping_per_unit_usd'))['total'] or Decimal('0')
+        purchase_shipping_aed = PurchaseItem.objects.aggregate(total=Sum('shipping_per_unit_aed'))['total'] or Decimal('0')
+
+        # SALES
+        sales_invoices = SaleInvoice.objects.all()
+        total_sales_with_vat_usd = sales_invoices.aggregate(total=Sum('total_with_vat_usd'))['total'] or Decimal('0')
+        total_sales_with_vat_aed = sales_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
+        total_sales_vat_usd = sales_invoices.aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
+        total_sales_vat_aed = sales_invoices.aggregate(total=Sum('vat_amount_aed'))['total'] or Decimal('0')
+        total_sales_without_vat_usd = total_sales_with_vat_usd - total_sales_vat_usd
+        total_sales_without_vat_aed = total_sales_with_vat_aed - total_sales_vat_aed
+
+        # Sum shipping for all SaleItems
+        sales_shipping_usd = SaleItem.objects.aggregate(total=Sum('shipping_usd'))['total'] or Decimal('0')
+        sales_shipping_aed = SaleItem.objects.aggregate(total=Sum('shipping_aed'))['total'] or Decimal('0')
+
+        # SALES Discounts
+        total_sales_discount_usd = sales_invoices.aggregate(total=Sum('discount_usd'))['total'] or Decimal('0')
+        total_sales_discount_aed = sales_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
+
+        # EXPENSES
+        total_expense_usd = Expense.objects.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
+        total_expense_aed = Expense.objects.aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+
+        total_salary_usd = SalaryEntry.objects.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
+        total_salary_aed = SalaryEntry.objects.aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+
+        all_expenses_usd = total_expense_usd + total_salary_usd
+        all_expenses_aed = total_expense_aed + total_salary_aed
+
+        report = {
+            "purchase": {
+                "total_with_vat_usd": str(total_purchase_with_vat_usd),
+                "total_with_vat_aed": str(total_purchase_with_vat_aed),
+                "total_without_vat_usd": str(total_purchase_without_vat_usd),
+                "total_without_vat_aed": str(total_purchase_without_vat_aed),
+                "vat_usd": str(total_purchase_vat_usd),
+                "vat_aed": str(total_purchase_vat_aed),
+                "total_shipping_usd": str(purchase_shipping_usd),
+                "total_shipping_aed": str(purchase_shipping_aed),
+            },
+            "sales": {
+                "total_with_vat_usd": str(total_sales_with_vat_usd),
+                "total_with_vat_aed": str(total_sales_with_vat_aed),
+                "total_without_vat_usd": str(total_sales_without_vat_usd),
+                "total_without_vat_aed": str(total_sales_without_vat_aed),
+                "vat_usd": str(total_sales_vat_usd),
+                "vat_aed": str(total_sales_vat_aed),
+                "total_shipping_usd": str(sales_shipping_usd),
+                "total_shipping_aed": str(sales_shipping_aed),
+                "total_discount_usd": str(total_sales_discount_usd),
+                "total_discount_aed": str(total_sales_discount_aed),
+            },
+            "expenses": {
+                "total_expense_usd": str(total_expense_usd),
+                "total_expense_aed": str(total_expense_aed),
+                "total_salary_usd": str(total_salary_usd),
+                "total_salary_aed": str(total_salary_aed),
+                "all_expenses_usd": str(all_expenses_usd),
+                "all_expenses_aed": str(all_expenses_aed),
+            }
+        }
+        return Response(report)
+
+
