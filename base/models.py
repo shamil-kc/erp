@@ -213,6 +213,8 @@ class Expense(models.Model):
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
     date = models.DateField(default=timezone.now)
     notes = models.CharField(max_length=250, blank=True, null=True)
+    is_reminder_needed = models.BooleanField(default=False)
+    reminder_date = models.DateField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.type.name} AED {self.amount_aed} / USD {self.amount_usd} on {self.date}"
