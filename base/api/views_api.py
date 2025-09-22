@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework import generics, permissions
 from django.contrib.auth.models import User
 from base.api.pagination import CustomPagination
+from collections import defaultdict
 
 class CustomAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
@@ -379,5 +380,98 @@ class PurchaseSalesReportAPIView(APIView):
             }
         }
         return Response(report)
+
+
+class ProductBatchSalesReportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination
+
+    def get(self, request):
+        products = ProductItem.objects.all()
+        report = []
+
+        for product in products:
+            purchases = PurchaseItem.objects.filter(item=product).order_by(
+                'invoice__purchase_date', 'id')
+            sales = SaleItem.objects.filter(item=product).order_by(
+                'invoice__sale_date', 'id')
+
+            # Prepare purchase batches with available quantity
+            purchase_batches = []
+            for p in purchases:
+                purchase_batches.append({'batch_id': p.id,
+                    'purchase_invoice': p.invoice.invoice_no,
+                    'purchase_date': p.invoice.purchase_date, 'qty': p.qty,
+                    'unit_price': p.unit_price_usd,
+                    # adjust currency as per need
+                    'shipping_per_unit': p.shipping_per_unit_usd,
+                    # optional include shipment cost
+                    'available': p.qty, 'factors': p.factors or '', })
+
+            batch_pointer = 0
+            sales_entries_by_batch = defaultdict(list)
+
+            # Iterate over sales and allocate qty FIFO to purchase batches
+            for s in sales:
+                sale_qty = s.qty
+                while sale_qty > 0 and batch_pointer < len(purchase_batches):
+                    batch = purchase_batches[batch_pointer]
+                    available_qty = batch['available']
+                    if available_qty == 0:
+                        batch_pointer += 1
+                        continue
+                    consume_qty = min(sale_qty, available_qty)
+
+                    # Calculate profit = (sale_price - purchase_price) * qty
+                    profit = (s.sale_price_usd - batch[
+                        'unit_price']) * consume_qty
+
+                    # Save sales mapped data under purchase batch
+                    sales_entries_by_batch[batch['batch_id']].append(
+                        {'sale_invoice': s.invoice.invoice_no,
+                            'sale_date': s.invoice.sale_date,
+                            'qty_sold': consume_qty,
+                            'sale_price_per_unit': s.sale_price_usd,
+                            'total_sale_amount': s.sale_price_usd * consume_qty,
+                            'profit': float(profit),
+                            'batch_balance_after_sale': available_qty - consume_qty, })
+
+                    batch['available'] -= consume_qty
+                    sale_qty -= consume_qty
+
+                    if batch['available'] == 0:
+                        batch_pointer += 1
+
+                # If sale_qty >0 here: sales qty more than available purchase - handle as needed
+
+            # Prepare report for each purchase batch
+            batch_reports = []
+            total_profit = 0
+            closing_qty = 0
+            for batch in purchase_batches:
+                batch_id = batch['batch_id']
+                sales_for_batch = sales_entries_by_batch.get(batch_id, [])
+                batch_profit = sum(s['profit'] for s in sales_for_batch)
+                batch_reports.append(
+                    {'purchase_invoice_no': batch['purchase_invoice'],
+                        'purchase_date': batch['purchase_date'],
+                        'purchase_qty': batch['qty'],
+                        'unit_price': float(batch['unit_price']),
+                        'shipping_per_unit': float(
+                            batch.get('shipping_per_unit', 0)),
+                        'factors': batch['factors'], 'sales': sales_for_batch,
+                        'batch_profit': float(batch_profit),
+                        'batch_balance': batch['available'], })
+                total_profit += batch_profit
+                closing_qty += batch['available']
+
+            report.append(
+                {'product': str(product), 'batch_reports': batch_reports,
+                    'total_profit': float(total_profit),
+                    'closing_quantity': closing_qty, })
+
+        return Response(report)
+
+
 
 

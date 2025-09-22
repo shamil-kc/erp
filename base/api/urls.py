@@ -32,4 +32,6 @@ urlpatterns = [
     path('product/bulk-create/', ProductItemBulkCreateAPIView.as_view(),
          name='productitem-bulk-create'),
     path('purchase-sales-report/', PurchaseSalesReportAPIView.as_view(),
-         name='purchase-sales-report'), ]
+         name='purchase-sales-report'),
+path('product-batch-sales-report/', ProductBatchSalesReportAPIView.as_view(), name='product-batch-sales-report'),
+]
