@@ -3,6 +3,8 @@ from rest_framework.views import APIView
 from base.models import *
 from .serializers import *
 from django.db.models import Sum
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import PurchaseInvoiceFilter, SaleInvoiceFilter
 
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
@@ -160,6 +162,8 @@ class ProductItemBulkCreateAPIView(APIView):
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
     queryset = PurchaseInvoice.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = PurchaseInvoiceFilter
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -183,6 +187,8 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
     queryset = SaleInvoice.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = SaleInvoiceFilter
 
     def get_serializer_class(self):
         if self.action == 'create':

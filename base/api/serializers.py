@@ -5,7 +5,7 @@ from django.db import transaction
 from django.contrib.auth.models import User, Group
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    role = serializers.ChoiceField(choices=['Admin', 'Member'], write_only=True)
+    role = serializers.ChoiceField(choices=['Master-Admin','Admin', 'Member'], write_only=True)
 
     class Meta:
         model = User
