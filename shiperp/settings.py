@@ -143,6 +143,9 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
+if not DEBUG:
+    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
 # For production (when you run collectstatic), set:
 # STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
