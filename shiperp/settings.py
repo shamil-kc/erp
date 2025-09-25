@@ -138,16 +138,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 
-# During development, add:
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
+    os.path.join(BASE_DIR, 'assets'),  # Example: your custom static files folder
 ]
-
-if not DEBUG:
-    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-
-# For production (when you run collectstatic), set:
-# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 
 REST_FRAMEWORK = {
