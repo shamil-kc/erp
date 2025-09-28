@@ -456,3 +456,9 @@ class SalaryEntrySerializer(serializers.ModelSerializer):
             'entry_type', 'date', 'notes'
         ]
 
+
+class ServiceFeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceFee
+        fields = '__all__'
+

@@ -5,11 +5,10 @@ product types, grades, items, purchases, sales, and taxes.
 """
 
 from django.contrib import admin
-from .models import (
-    Product, ProductType, ProductGrade, ProductItem,
-    PurchaseItem,PurchaseInvoice, SaleInvoice, SaleItem, Tax, ExpenseType, Expense, Account,
-    SalaryEntry,Designation
-)
+from .models import (Product, ProductType, ProductGrade, ProductItem,
+                     PurchaseItem, PurchaseInvoice, SaleInvoice, SaleItem, Tax,
+                     ExpenseType, Expense, Account, SalaryEntry, Designation,
+                     ServiceFee)
 
 
 
@@ -193,4 +192,9 @@ class SalaryEntryAdmin(admin.ModelAdmin):
     list_filter = ('entry_type', 'date', 'account')
     search_fields = ('account__name', 'notes')
     date_hierarchy = 'date'
+
+@admin.register(ServiceFee)
+class ServiceFee(admin.ModelAdmin):
+    list_display = ('__str__', 'description', 'amount_aed', 'amount_usd')
+    search_fields = ('__str__',)
 

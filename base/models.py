@@ -254,6 +254,26 @@ class SalaryEntry(models.Model):
         return f"{self.account.name} {self.entry_type}: AED {self.amount_aed}, USD {self.amount_usd}"
 
 
+class ServiceFee(models.Model):
+    sales_invoice = models.ForeignKey(
+        SaleInvoice,
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name='service_fees',
+        help_text='Optional: Associated sales invoice'
+    )
+    description = models.TextField(blank=True, null=True)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        if self.sales_invoice:
+            return f"Service Fee for Invoice {self.sales_invoice.invoice_no}"
+        return f"Standalone Service Fee {self.id}"
+
+
 
 
 

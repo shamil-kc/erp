@@ -579,3 +579,8 @@ class TaxSummaryAPIView(APIView):
         return Response(data)
 
 
+class ServiceFeeViewSet(viewsets.ModelViewSet):
+    queryset = ServiceFee.objects.all()
+    serializer_class = ServiceFeeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
