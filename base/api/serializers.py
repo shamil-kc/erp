@@ -467,7 +467,8 @@ class ExpenseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expense
         fields = ['id', 'type', 'type_id', 'amount_aed', 'amount_usd',
-                  'date', 'notes', 'is_reminder_needed' , 'reminder_date']
+                  'date', 'notes', 'is_reminder_needed' , 'reminder_date',
+                  'is_shown']
 
 
 class DesignationSerializer(serializers.ModelSerializer):

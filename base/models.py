@@ -230,6 +230,7 @@ class Expense(models.Model):
     notes = models.CharField(max_length=250, blank=True, null=True)
     is_reminder_needed = models.BooleanField(default=False)
     reminder_date = models.DateField(blank=True, null=True)
+    is_shown = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.type.name} AED {self.amount_aed} / USD {self.amount_usd} on {self.date}"

@@ -5,6 +5,8 @@ from .serializers import *
 from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import PurchaseInvoiceFilter, SaleInvoiceFilter
+from decimal import Decimal
+from datetime import date
 
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
@@ -584,3 +586,31 @@ class ServiceFeeViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceFeeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
+
+class RemindersAPIView(APIView):
+    """GET = fetch today's reminders, POST = mark a reminder as shown."""
+
+    def get(self, request):
+        """Return all reminders for today that are not shown yet."""
+        today = date.today()
+        reminders = Expense.objects.filter(
+            is_reminder_needed=True,
+            reminder_date=today
+        )
+        serializer = ExpenseSerializer(reminders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Mark a specific reminder as shown (requires 'id' in request body)."""
+        expense_id = request.data.get("id")
+        if not expense_id:
+            return Response({"error": "id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            expense = Expense.objects.get(pk=expense_id)
+            expense.is_shown = True
+            expense.save()
+            return Response({"status": "success"}, status=status.HTTP_200_OK)
+        except Expense.DoesNotExist:
+            return Response({"error": "Expense not found"}, status=status.HTTP_404_NOT_FOUND)
