@@ -288,6 +288,12 @@ class PurchaseItemUpdateSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ServiceFeeNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceFee
+        fields = ['id', 'description', 'amount_usd', 'amount_aed']
+
+
 class SaleItemSerializer(serializers.ModelSerializer):
     item = serializers.SerializerMethodField()
     class Meta:
@@ -322,6 +328,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    has_service_fee = serializers.BooleanField(write_only=True, default=False)
+    service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
 
     class Meta:
         model = SaleInvoice
@@ -331,11 +339,16 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'sale_date',
             'items',
             'discount_usd',
-            'discount_aed'
+            'discount_aed',
+            'has_service_fee',
+            'service_fee'
         ]
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
+        has_service_fee = validated_data.pop('has_service_fee', False)
+        service_fee_data = validated_data.pop('service_fee', None)
+
         # No need to pop, use defaults in the model itself
         invoice = SaleInvoice.objects.create(**validated_data)
         for item in items_data:
@@ -344,6 +357,11 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
                 sale_price_aed=item['sale_price_aed'],
                 shipping_usd=item.get('shipping_usd', 0),
                 shipping_aed=item.get('shipping_aed', 0), )
+
+        # create service_fee if applicable
+        if has_service_fee and service_fee_data:
+            ServiceFee.objects.create(sales_invoice=invoice,
+                **service_fee_data)
         invoice.calculate_totals()
         return invoice
 
@@ -352,13 +370,18 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    has_service_fee = serializers.BooleanField(write_only=True, default=False)
+    service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
 
     class Meta:
         model = SaleInvoice
-        fields = ['invoice_no', 'customer_name', 'sale_date', 'discount_usd', 'discount_aed', 'items']
+        fields = ['invoice_no', 'customer_name', 'sale_date', 'discount_usd',
+                  'discount_aed', 'items','has_service_fee', 'service_fee']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
+        has_service_fee = validated_data.pop('has_service_fee', False)
+        service_fee_data = validated_data.pop('service_fee', None)
 
         with transaction.atomic():
             for attr, value in validated_data.items():
@@ -397,6 +420,22 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                             sale_price_aed=item_data['sale_price_aed'],
                             shipping_usd=item_data.get('shipping_usd', 0),
                             shipping_aed=item_data.get('shipping_aed', 0), )
+            # Handle service fee
+            if has_service_fee and service_fee_data:
+                # Update or create ServiceFee for this invoice
+                service_fee_qs = ServiceFee.objects.filter(
+                    sales_invoice=instance)
+                if service_fee_qs.exists():
+                    service_fee_obj = service_fee_qs.first()
+                    for attr, value in service_fee_data.items():
+                        setattr(service_fee_obj, attr, value)
+                    service_fee_obj.save()
+                else:
+                    ServiceFee.objects.create(sales_invoice=instance,
+                        **service_fee_data)
+            elif not has_service_fee:
+                # If flag is False, optionally delete existing service fee linked
+                ServiceFee.objects.filter(sales_invoice=instance).delete()
 
             instance.calculate_totals()
         return instance
