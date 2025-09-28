@@ -288,6 +288,13 @@ class PurchaseItemUpdateSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ServiceFeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceFee
+        fields = '__all__'
+
+
+
 class ServiceFeeNestedSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceFee
@@ -320,6 +327,7 @@ class SaleItemNestedSerializer(serializers.Serializer):
 
 class SaleInvoiceSerializer(serializers.ModelSerializer):
     sale_items = SaleItemSerializer(many=True, read_only=True)
+    service_fees = ServiceFeeSerializer(many=True, read_only=True)
     class Meta:
         model = SaleInvoice
         fields = '__all__'
@@ -494,10 +502,4 @@ class SalaryEntrySerializer(serializers.ModelSerializer):
             'id', 'account', 'account_id', 'amount_aed', 'amount_usd',
             'entry_type', 'date', 'notes'
         ]
-
-
-class ServiceFeeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ServiceFee
-        fields = '__all__'
 
