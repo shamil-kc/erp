@@ -13,6 +13,7 @@ from rest_framework import generics, permissions
 from django.contrib.auth.models import User
 from base.api.pagination import CustomPagination
 from collections import defaultdict
+from django.db.models import Q
 
 class CustomAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
@@ -479,5 +480,102 @@ class ProductBatchSalesReportAPIView(APIView):
         return Response(report)
 
 
+class TaxSummaryAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        sale_invoice_filter = Q()
+        purchase_invoice_filter = Q()
+        sale_item_filter = Q()
+        purchase_item_filter = Q()
+        expense_filter = Q()
+        salary_filter = Q()
+
+        if start_date:
+            sale_invoice_filter &= Q(sale_date__gte=start_date)
+            purchase_invoice_filter &= Q(purchase_date__gte=start_date)
+            sale_item_filter &= Q(invoice__sale_date__gte=start_date)
+            purchase_item_filter &= Q(invoice__purchase_date__gte=start_date)
+            expense_filter &= Q(date__gte=start_date)
+            salary_filter &= Q(date__gte=start_date)
+        if end_date:
+            sale_invoice_filter &= Q(sale_date__lte=end_date)
+            purchase_invoice_filter &= Q(purchase_date__lte=end_date)
+            sale_item_filter &= Q(invoice__sale_date__lte=end_date)
+            purchase_item_filter &= Q(invoice__purchase_date__lte=end_date)
+            expense_filter &= Q(date__lte=end_date)
+            salary_filter &= Q(date__lte=end_date)
+
+        # VAT aggregation
+        total_sales_vat_usd = SaleInvoice.objects.filter(sale_invoice_filter).aggregate(
+            total=Sum('vat_amount_usd'))['total'] or Decimal('0')
+        total_sales_vat_aed = SaleInvoice.objects.filter(sale_invoice_filter).aggregate(
+            total=Sum('vat_amount_aed'))['total'] or Decimal('0')
+
+        total_purchase_vat_usd = PurchaseInvoice.objects.filter(purchase_invoice_filter).aggregate(
+            total=Sum('vat_amount_usd'))['total'] or Decimal('0')
+        total_purchase_vat_aed = PurchaseInvoice.objects.filter(purchase_invoice_filter).aggregate(
+            total=Sum('vat_amount_aed'))['total'] or Decimal('0')
+
+        # Sales base amount (qty * price + shipping), carefully cast to Decimal
+        sales_items = SaleItem.objects.filter(sale_item_filter)
+        total_sales_base_usd = sum(
+            (Decimal(item.sale_price_usd) * item.qty) + Decimal(item.shipping_usd)
+            for item in sales_items
+        )
+        total_sales_base_aed = sum(
+            (Decimal(item.sale_price_aed) * item.qty) + Decimal(item.shipping_aed)
+            for item in sales_items
+        )
+
+        # Purchase base amount (qty * price + shipping)
+        purchase_items = PurchaseItem.objects.filter(purchase_item_filter)
+        total_purchase_base_usd = sum(
+            (Decimal(item.unit_price_usd) * item.qty) + (Decimal(item.shipping_per_unit_usd) * item.qty)
+            for item in purchase_items
+        )
+        total_purchase_base_aed = sum(
+            (Decimal(item.unit_price_aed) * item.qty) + (Decimal(item.shipping_per_unit_aed) * item.qty)
+            for item in purchase_items
+        )
+
+        # Expenses & Salary
+        total_expenses_usd = Expense.objects.filter(expense_filter).aggregate(
+            total=Sum('amount_usd'))['total'] or Decimal('0')
+        total_expenses_aed = Expense.objects.filter(expense_filter).aggregate(
+            total=Sum('amount_aed'))['total'] or Decimal('0')
+
+        total_salary_usd = SalaryEntry.objects.filter(salary_filter).aggregate(
+            total=Sum('amount_usd'))['total'] or Decimal('0')
+        total_salary_aed = SalaryEntry.objects.filter(salary_filter).aggregate(
+            total=Sum('amount_aed'))['total'] or Decimal('0')
+
+        # Corporate tax calculation (Decimal math)
+        corporate_tax_usd = total_sales_base_usd - (
+            total_purchase_base_usd + total_expenses_usd + total_salary_usd
+        )
+        corporate_tax_aed = total_sales_base_aed - (
+            total_purchase_base_aed + total_expenses_aed + total_salary_aed
+        )
+
+        # Build response, convert Decimals to float for JSON
+        data = {
+            "sales": {
+                "total_vat_usd": float(total_sales_vat_usd),
+                "total_vat_aed": float(total_sales_vat_aed),
+            },
+            "purchase": {
+                "total_vat_usd": float(total_purchase_vat_usd),
+                "total_vat_aed": float(total_purchase_vat_aed),
+            },
+            "corporate_tax": {
+                "usd": float(corporate_tax_usd),
+                "aed": float(corporate_tax_aed),
+            }
+        }
+        return Response(data)
 
 
