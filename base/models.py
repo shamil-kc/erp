@@ -139,24 +139,39 @@ class SaleInvoice(models.Model):
     discount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     def calculate_totals(self):
-        total_usd = sum([item.sale_price_usd for item in self.sale_items.all()])
-        total_aed = sum([item.sale_price_aed for item in self.sale_items.all()])
-        # Subtract discount (never below zero)
-        discounted_usd = max(total_usd - (self.discount_usd or Decimal('0')), Decimal('0'))
-        discounted_aed = max(total_aed - (self.discount_aed or Decimal('0')), Decimal('0'))
+        total_usd = sum(item.amount_usd for item in self.sale_items.all())
+        total_aed = sum(item.amount_aed for item in self.sale_items.all())
+
+        # Sum service fee amounts if any
+        service_fee_usd = sum(
+            fee.amount_usd for fee in self.service_fees.all())
+        service_fee_aed = sum(
+            fee.amount_aed for fee in self.service_fees.all())
+
+        # Total before discount includes service fees
+        total_usd += service_fee_usd
+        total_aed += service_fee_aed
+
+        # Subtract discount, never below zero
+        discounted_usd = max(total_usd - (self.discount_usd or Decimal('0')),
+                             Decimal('0'))
+        discounted_aed = max(total_aed - (self.discount_aed or Decimal('0')),
+                             Decimal('0'))
+
         tax = Tax.objects.filter(active=True).first()
-        vat_usd = discounted_usd * (tax.vat_percent / 100) if tax else Decimal('0')
-        vat_aed = discounted_aed * (tax.vat_percent / 100) if tax else Decimal('0')
+        vat_usd = discounted_usd * (tax.vat_percent / 100) if tax else Decimal(
+            '0')
+        vat_aed = discounted_aed * (tax.vat_percent / 100) if tax else Decimal(
+            '0')
+
         self.vat_amount_usd = vat_usd
         self.total_with_vat_usd = discounted_usd + vat_usd
         self.vat_amount_aed = vat_aed
         self.total_with_vat_aed = discounted_aed + vat_aed
-        SaleInvoice.objects.filter(pk=self.pk).update(
-            vat_amount_usd=vat_usd,
-            total_with_vat_usd=discounted_usd + vat_usd,
-            vat_amount_aed=vat_aed,
-            total_with_vat_aed=discounted_aed + vat_aed
-        )
+
+        SaleInvoice.objects.filter(pk=self.pk).update(vat_amount_usd=vat_usd,
+            total_with_vat_usd=self.total_with_vat_usd, vat_amount_aed=vat_aed,
+            total_with_vat_aed=self.total_with_vat_aed)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

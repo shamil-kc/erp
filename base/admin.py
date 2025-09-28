@@ -128,6 +128,16 @@ class SaleItemInline(admin.TabularInline):
     extra = 1
     autocomplete_fields = ['item']
 
+class ServiceFeeInline(admin.TabularInline):
+    """
+    Inline admin for ServiceFee in SaleInvoice admin.
+    """
+    model = ServiceFee
+    extra = 0
+    fields = ('description', 'amount_usd', 'amount_aed')
+    readonly_fields = ()  # Keep empty if editable
+
+
 @admin.register(SaleInvoice)
 class SaleInvoiceAdmin(admin.ModelAdmin):
     """
@@ -135,7 +145,7 @@ class SaleInvoiceAdmin(admin.ModelAdmin):
     Displays invoice details and allows inline editing of related sale items.
     """
     list_display = ('invoice_no', 'sale_date', 'customer_name', 'created_at')
-    inlines = [SaleItemInline]
+    inlines = [SaleItemInline, ServiceFeeInline]
     search_fields = ('invoice_no', 'customer_name')
 
 @admin.register(SaleItem)
