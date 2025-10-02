@@ -34,3 +34,10 @@ Pipfile
 Pipfile.lock
 .python-version
 docker-compose-python2.yml
+base/__pycache__/*
+api_test.json
+db.sqlite3
+deploy.sh
+envtest
+venv/
+

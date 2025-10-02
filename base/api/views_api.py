@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
 from django.utils import timezone
 from base.models import *
-from base.models import UserActivity
+from base.models import UserActivity, PaymentEntry
 from django.contrib.contenttypes.models import ContentType
 from django.forms.models import model_to_dict
 from .serializers import *
@@ -476,7 +476,8 @@ class PurchaseSalesReportAPIView(APIView):
             sales_filters['sale_date__lte'] = end_date
 
         # PURCHASES
-        purchase_invoices = PurchaseInvoice.objects.filter(**purchase_filters)
+        purchase_invoices = PurchaseInvoice.objects.filter(
+            status=PurchaseInvoice.STATUS_APPROVED, **purchase_filters)
         total_purchase_with_vat_usd = purchase_invoices.aggregate(total=Sum('total_with_vat_usd'))['total'] or Decimal('0')
         total_purchase_with_vat_aed = purchase_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
         total_purchase_vat_usd = purchase_invoices.aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
@@ -499,7 +500,8 @@ class PurchaseSalesReportAPIView(APIView):
 
 
         # SALES
-        sales_invoices = SaleInvoice.objects.filter(**sales_filters)
+        sales_invoices = SaleInvoice.objects.filter(
+            status=SaleInvoice.STATUS_APPROVED, **sales_filters)
         total_sales_with_vat_usd = sales_invoices.aggregate(total=Sum('total_with_vat_usd'))['total'] or Decimal('0')
         total_sales_with_vat_aed = sales_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
         total_sales_vat_usd = sales_invoices.aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
@@ -580,9 +582,11 @@ class ProductBatchSalesReportAPIView(APIView):
         report = []
 
         for product in products:
-            purchases = PurchaseItem.objects.filter(item=product).order_by(
+            purchases = PurchaseItem.objects.filter(item=product,
+                                                    invoice__status=PurchaseInvoice.STATUS_APPROVED).order_by(
                 'invoice__purchase_date', 'id')
-            sales = SaleItem.objects.filter(item=product).order_by(
+            sales = SaleItem.objects.filter(item=product,
+                                            invoice__status=SaleInvoice.STATUS_APPROVED).order_by(
                 'invoice__sale_date', 'id')
 
             # Prepare purchase batches with available quantity
@@ -692,18 +696,22 @@ class TaxSummaryAPIView(APIView):
             salary_filter &= Q(date__lte=end_date)
 
         # VAT aggregation
-        total_sales_vat_usd = SaleInvoice.objects.filter(sale_invoice_filter).aggregate(
-            total=Sum('vat_amount_usd'))['total'] or Decimal('0')
+        total_sales_vat_usd = \
+        SaleInvoice.objects.filter(status=SaleInvoice.STATUS_APPROVED).filter(
+            sale_invoice_filter).aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
         total_sales_vat_aed = SaleInvoice.objects.filter(sale_invoice_filter).aggregate(
             total=Sum('vat_amount_aed'))['total'] or Decimal('0')
 
-        total_purchase_vat_usd = PurchaseInvoice.objects.filter(purchase_invoice_filter).aggregate(
-            total=Sum('vat_amount_usd'))['total'] or Decimal('0')
+        total_purchase_vat_usd = PurchaseInvoice.objects.filter(
+            status=PurchaseInvoice.STATUS_APPROVED).filter(
+            purchase_invoice_filter).aggregate(total=Sum('vat_amount_usd'))['total'] or Decimal('0')
         total_purchase_vat_aed = PurchaseInvoice.objects.filter(purchase_invoice_filter).aggregate(
             total=Sum('vat_amount_aed'))['total'] or Decimal('0')
 
         # Sales base amount (qty * price + shipping), carefully cast to Decimal
-        sales_items = SaleItem.objects.filter(sale_item_filter)
+        sales_items = SaleItem.objects.filter(
+            invoice__status=SaleInvoice.STATUS_APPROVED).filter(
+            sale_item_filter)
         total_sales_base_usd = sum(
             (Decimal(item.sale_price_usd) * item.qty) + Decimal(item.shipping_usd)
             for item in sales_items
@@ -714,7 +722,9 @@ class TaxSummaryAPIView(APIView):
         )
 
         # Purchase base amount (qty * price + shipping)
-        purchase_items = PurchaseItem.objects.filter(purchase_item_filter)
+        purchase_items = PurchaseItem.objects.filter(
+            invoice__status=PurchaseInvoice.STATUS_APPROVED).filter(
+            purchase_item_filter)
         total_purchase_base_usd = sum(
             (Decimal(item.unit_price_usd) * item.qty) + (Decimal(item.shipping_per_unit_usd) * item.qty)
             for item in purchase_items
@@ -800,3 +810,16 @@ class RemindersAPIView(APIView):
             return Response({"status": "success"}, status=status.HTTP_200_OK)
         except Expense.DoesNotExist:
             return Response({"error": "Expense not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class PaymentEntryViewSet(viewsets.ModelViewSet):
+    queryset = PaymentEntry.objects.all()
+    serializer_class = PaymentEntrySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())

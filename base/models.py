@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from decimal import Decimal
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 
 
 class Product(models.Model):
@@ -58,7 +59,16 @@ class ProductItem(models.Model):
         return f"{self.grade} - Size {self.size}"
 
 class PurchaseInvoice(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_APPROVED = 'approved'
+    STATUS_CHOICES = [(STATUS_PENDING, 'Pending'),
+        (STATUS_IN_PROGRESS, 'Payment In Progress'),
+        (STATUS_APPROVED, 'Approved')]
+
     invoice_no = models.CharField(max_length=50, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
+                              default=STATUS_PENDING)
     supplier = models.CharField(max_length=100, blank=True, null=True)
     purchase_date = models.DateField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -166,7 +176,16 @@ class PurchaseItem(models.Model):
 
 
 class SaleInvoice(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_APPROVED = 'approved'
+    STATUS_CHOICES = [(STATUS_PENDING, 'Pending'),
+        (STATUS_IN_PROGRESS, 'Payment In Progress'),
+        (STATUS_APPROVED, 'Approved')]
+
     invoice_no = models.CharField(max_length=50, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
+                              default=STATUS_PENDING)
     sale_date = models.DateField(default=timezone.now)
     customer_name = models.CharField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -376,6 +395,37 @@ class ServiceFee(models.Model):
         if self.sales_invoice:
             return f"Service Fee for Invoice {self.sales_invoice.invoice_no}"
         return f"Standalone Service Fee {self.id}"
+
+
+class PaymentEntry(models.Model):
+    purchase_invoice = models.ForeignKey(PurchaseInvoice,
+                                         on_delete=models.CASCADE, null=True,
+                                         blank=True, related_name='payments')
+    sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE,
+                                     null=True, blank=True,
+                                     related_name='payments')
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateField(default=timezone.now)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
+
+    def __str__(self):
+        invoice = self.purchase_invoice or self.sale_invoice
+        return f"Payment for {invoice} - USD {self.amount_usd}"
+
+    def clean(self):
+        if not (self.purchase_invoice or self.sale_invoice):
+            raise ValidationError(
+                "Must specify either purchase or sale invoice")
+        if self.purchase_invoice and self.sale_invoice:
+            raise ValidationError(
+                "Cannot specify both purchase and sale invoice")
 
 
 class UserActivity(models.Model):
