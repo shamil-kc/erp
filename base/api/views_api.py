@@ -1,6 +1,10 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
+from django.utils import timezone
 from base.models import *
+from base.models import UserActivity
+from django.contrib.contenttypes.models import ContentType
+from django.forms.models import model_to_dict
 from .serializers import *
 from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
@@ -16,6 +20,25 @@ from django.contrib.auth.models import User
 from base.api.pagination import CustomPagination
 from collections import defaultdict
 from django.db.models import Q
+
+
+def log_activity(request, action, instance, changes=None):
+    def convert_decimal(obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return obj
+
+    if changes:
+        changes = {k: {'old': convert_decimal(v['old']),
+                       'new': convert_decimal(v['new'])} for k, v in
+                   changes.items()}
+
+    content_type = ContentType.objects.get_for_model(instance)
+    UserActivity.objects.create(user=request.user, content_type=content_type,
+        object_id=instance.id, action=action, changes=changes,
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT'))
+
 
 class CustomAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
@@ -55,6 +78,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
+
     def create(self, request, *args, **kwargs):
         product_name = request.data.get('name', '').strip()
         if Product.objects.filter(name__iexact=product_name).exists():
@@ -77,6 +107,13 @@ class ProductTypeViewSet(viewsets.ModelViewSet):
     queryset = ProductType.objects.all()
     serializer_class = ProductTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
 
     def create(self, request, *args, **kwargs):
         product_id = request.data.get('product')
@@ -111,6 +148,17 @@ class ProductGradeViewSet(viewsets.ModelViewSet):
     serializer_class = ProductGradeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        if type(instance) in [PurchaseInvoice, SaleInvoice, ServiceFee, Tax,
+                              Expense, SalaryEntry]:
+            log_activity(self.request.user, 'CREATE',
+                instance._meta.verbose_name, str(instance))
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
+
     def create(self, request, *args, **kwargs):
         product_type_id = request.data.get('product_type')
         grade = request.data.get('grade', '').strip()
@@ -144,6 +192,20 @@ class ProductItemViewSet(viewsets.ModelViewSet):
     queryset = ProductItem.objects.all()
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        log_activity(self.request, 'create', instance)
+
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_data = model_to_dict(old_instance)
+        instance = serializer.save(modified_by=self.request.user,
+                                   modified_at=timezone.now())
+        new_data = model_to_dict(instance)
+        changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                   new_data.items() if old_data[k] != v}
+        log_activity(self.request, 'update', instance, changes)
+
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update']:
             return ProductItemUpdateSerializer
@@ -168,6 +230,13 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = PurchaseInvoiceFilter
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
+
     def get_serializer_class(self):
         if self.action == 'create':
             return PurchaseInvoiceCreateSerializer
@@ -181,6 +250,20 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
     queryset = PurchaseItem.objects.all()
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        log_activity(self.request, 'create', instance)
+
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_data = model_to_dict(old_instance)
+        instance = serializer.save(modified_by=self.request.user,
+                                   modified_at=timezone.now())
+        new_data = model_to_dict(instance)
+        changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                   new_data.items() if old_data[k] != v}
+        log_activity(self.request, 'update', instance, changes)
+
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update']:
             return PurchaseItemUpdateSerializer
@@ -192,6 +275,27 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = SaleInvoiceFilter
+
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        log_activity(self.request, 'create', instance)
+
+    def perform_update(self, serializer):
+        def convert_decimal(obj):
+            if isinstance(obj, Decimal):
+                return float(obj)
+            return obj
+
+        old_instance = self.get_object()
+        old_data = {k: convert_decimal(v) for k, v in
+                    model_to_dict(old_instance).items()}
+        instance = serializer.save(modified_by=self.request.user,
+                                   modified_at=timezone.now())
+        new_data = {k: convert_decimal(v) for k, v in
+                    model_to_dict(instance).items()}
+        changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                   new_data.items() if old_data[k] != v}
+        log_activity(self.request, 'update', instance, changes)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -206,35 +310,111 @@ class SaleItemViewSet(viewsets.ModelViewSet):
     serializer_class = SaleItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
+
+
 class TaxViewSet(viewsets.ModelViewSet):
     queryset = Tax.objects.all()
     serializer_class = TaxSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        log_activity(self.request, 'create', instance)
+
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_data = model_to_dict(old_instance)
+        instance = serializer.save(modified_by=self.request.user,
+                                   modified_at=timezone.now())
+        new_data = model_to_dict(instance)
+        changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                   new_data.items() if old_data[k] != v}
+        log_activity(self.request, 'update', instance, changes)
+
 
 class ExpenseTypeViewSet(viewsets.ModelViewSet):
     queryset = ExpenseType.objects.all()
     serializer_class = ExpenseTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
+
+
 class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.all()
     serializer_class = ExpenseSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        log_activity(self.request, 'create', instance)
+
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_data = model_to_dict(old_instance)
+        instance = serializer.save(modified_by=self.request.user,
+                                   modified_at=timezone.now())
+        new_data = model_to_dict(instance)
+        changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                   new_data.items() if old_data[k] != v}
+        log_activity(self.request, 'update', instance, changes)
+
 
 class SalaryEntryViewSet(viewsets.ModelViewSet):
     queryset = SalaryEntry.objects.all()
     serializer_class = SalaryEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        log_activity(self.request, 'create', instance)
+
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_data = model_to_dict(old_instance)
+        instance = serializer.save(modified_by=self.request.user,
+                                   modified_at=timezone.now())
+        new_data = model_to_dict(instance)
+        changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                   new_data.items() if old_data[k] != v}
+        log_activity(self.request, 'update', instance, changes)
+
+
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
+
+
 class DesignationViewSet(viewsets.ModelViewSet):
     queryset = Designation.objects.all()
     serializer_class = DesignationSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
 
 
 class InventoryReportAPIView(APIView):
@@ -586,6 +766,12 @@ class ServiceFeeViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceFeeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user,
+                        modified_at=timezone.now())
 
 
 class RemindersAPIView(APIView):

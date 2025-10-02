@@ -1,9 +1,17 @@
 from django.db import models
 from django.utils import timezone
 from decimal import Decimal
+from django.contrib.auth.models import User
+
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return self.name
@@ -11,6 +19,12 @@ class Product(models.Model):
 class ProductType(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     type_name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return f"{self.product.name} - {self.type_name}"
@@ -18,6 +32,12 @@ class ProductType(models.Model):
 class ProductGrade(models.Model):
     product_type = models.ForeignKey(ProductType, on_delete=models.CASCADE)
     grade = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return f"{self.product_type} - {self.grade}"
@@ -29,6 +49,10 @@ class ProductItem(models.Model):
     weight_kg_each = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return f"{self.grade} - Size {self.size}"
@@ -38,6 +62,11 @@ class PurchaseInvoice(models.Model):
     supplier = models.CharField(max_length=100, blank=True, null=True)
     purchase_date = models.DateField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
     notes = models.TextField(blank=True, null=True)
 
     vat_amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -82,6 +111,13 @@ class Tax(models.Model):
     corporate_tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=9.00)
     custom_duty_percent = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
     active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
+
     def __str__(self):
         return f"{self.name}"
 
@@ -96,6 +132,12 @@ class PurchaseItem(models.Model):
     factors = models.CharField(max_length=100, blank=True, null=True)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     tax = models.ForeignKey(Tax, on_delete=models.PROTECT,
                             related_name="purchase_items")
@@ -128,6 +170,11 @@ class SaleInvoice(models.Model):
     sale_date = models.DateField(default=timezone.now)
     customer_name = models.CharField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     vat_amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_with_vat_usd = models.DecimalField(max_digits=13, decimal_places=2, default=0)
@@ -190,6 +237,12 @@ class SaleItem(models.Model):
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2,
                                      default=0)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     shipping_usd = models.DecimalField(max_digits=12, decimal_places=2,
                                        default=0)
@@ -217,6 +270,12 @@ class SaleItem(models.Model):
 class ExpenseType(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return self.name
@@ -231,6 +290,12 @@ class Expense(models.Model):
     is_reminder_needed = models.BooleanField(default=False)
     reminder_date = models.DateField(blank=True, null=True)
     is_shown = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return f"{self.type.name} AED {self.amount_aed} / USD {self.amount_usd} on {self.date}"
@@ -238,6 +303,12 @@ class Expense(models.Model):
 
 class Designation(models.Model):
     title = models.CharField(max_length=50, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return self.title
@@ -248,6 +319,12 @@ class Account(models.Model):
     designation = models.ForeignKey(Designation, on_delete=models.SET_NULL,
                                     null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return self.name
@@ -265,6 +342,12 @@ class SalaryEntry(models.Model):
     ])
     date = models.DateField(default=timezone.now)
     notes = models.CharField(max_length=250, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return f"{self.account.name} {self.entry_type}: AED {self.amount_aed}, USD {self.amount_usd}"
@@ -283,6 +366,11 @@ class ServiceFee(models.Model):
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         if self.sales_invoice:
@@ -290,7 +378,21 @@ class ServiceFee(models.Model):
         return f"Standalone Service Fee {self.id}"
 
 
+class UserActivity(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content_type = models.ForeignKey('contenttypes.ContentType',
+                                     on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    action = models.CharField(max_length=20, choices=[('create', 'Created'),
+        ('update', 'Updated'), ('delete', 'Deleted')])
+    timestamp = models.DateTimeField(auto_now_add=True)
+    changes = models.JSONField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=200, null=True, blank=True)
 
+    class Meta:
+        verbose_name_plural = "User Activities"
+        ordering = ['-timestamp']
 
-
-
+    def __str__(self):
+        return f"{self.user.username} {self.action} {self.content_type} at {self.timestamp}"
