@@ -3,6 +3,7 @@ from django.utils import timezone
 from decimal import Decimal
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import transaction as db_transaction
 
 
 class Product(models.Model):
@@ -398,26 +399,29 @@ class ServiceFee(models.Model):
 
 
 class PaymentEntry(models.Model):
-    purchase_invoice = models.ForeignKey(PurchaseInvoice,
-                                         on_delete=models.CASCADE, null=True,
-                                         blank=True, related_name='payments')
-    sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE,
-                                     null=True, blank=True,
-                                     related_name='payments')
-    amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
-    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
-    payment_date = models.DateField(default=timezone.now)
-    notes = models.TextField(blank=True, null=True)
+    PAYMENT_TYPE_CHOICES = (('cash', 'Cash'), ('bank', 'Bank'),
+                            ('check', 'Check'),)
+
+    invoice_type = models.CharField(max_length=10,
+        choices=(('sale', 'Sale'), ('purchase', 'Purchase')),
+        help_text='Type of invoice this payment belongs to')
+
+    invoice_id = models.PositiveIntegerField(
+        help_text='ID of related Sale or Purchase invoice')
+
+    payment_type = models.CharField(max_length=10,
+                                    choices=PAYMENT_TYPE_CHOICES)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+
     created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
-                                   related_name='+')
-    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
-                                    related_name='+')
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL,
+                                   null=True)
+
+    class Meta:
+        verbose_name_plural = "Payment Entries"
 
     def __str__(self):
-        invoice = self.purchase_invoice or self.sale_invoice
-        return f"Payment for {invoice} - USD {self.amount_usd}"
+        return f"{self.payment_type} payment of {self.amount} for {self.invoice_type} invoice #{self.invoice_id}"
 
     def clean(self):
         if not (self.purchase_invoice or self.sale_invoice):
@@ -446,3 +450,72 @@ class UserActivity(models.Model):
 
     def __str__(self):
         return f"{self.user.username} {self.action} {self.content_type} at {self.timestamp}"
+
+
+class CashAccount(models.Model):
+    ACCOUNT_TYPE_CHOICES = (
+        ('cash_in_hand', 'Cash In Hand'),
+        ('cash_in_bank', 'Cash In Bank'),
+        ('check_cash', 'Check Cash'),
+    )
+    name = models.CharField(max_length=100)
+    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPE_CHOICES)
+    balance = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def deposit(self, amount):
+        self.balance += amount
+        self.save()
+        Transaction.objects.create(
+            account=self, amount=amount, transaction_type='deposit', timestamp=timezone.now()
+        )
+
+    def withdraw(self, amount):
+        if amount > self.balance:
+            raise ValueError("Insufficient funds!")
+        self.balance -= amount
+        self.save()
+        Transaction.objects.create(
+            account=self, amount=amount, transaction_type='withdrawal', timestamp=timezone.now()
+        )
+
+    def transfer(self, to_account, amount):
+        if amount > self.balance:
+            raise ValueError("Insufficient funds for transfer!")
+        if self == to_account:
+            raise ValueError("Cannot transfer to the same account!")
+        with db_transaction.atomic():
+            self.withdraw(amount)
+            to_account.deposit(amount)
+            AccountTransfer.objects.create(
+                from_account=self,
+                to_account=to_account,
+                amount=amount,
+                timestamp=timezone.now()
+            )
+
+    def __str__(self):
+        return f"{self.name}: {self.account_type} — ₹{self.balance}"
+
+class Transaction(models.Model):
+    TRANSACTION_TYPE_CHOICES = (
+        ('deposit', 'Deposit'),
+        ('withdrawal', 'Withdrawal'),
+    )
+    account = models.ForeignKey(CashAccount, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.account.name} — {self.transaction_type}: ₹{self.amount}"
+
+class AccountTransfer(models.Model):
+    from_account = models.ForeignKey(CashAccount, on_delete=models.CASCADE, related_name='outgoing_transfers')
+    to_account = models.ForeignKey(CashAccount, on_delete=models.CASCADE, related_name='incoming_transfers')
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Transfer {self.amount} from {self.from_account.name} to {self.to_account.name} at {self.timestamp}"
+

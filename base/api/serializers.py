@@ -144,6 +144,16 @@ class ProductItemBulkCreateSerializer(serializers.Serializer):
             created_items.append(product_item_obj)
         return created_items
 
+class PaymentEntrySerializer(serializers.ModelSerializer):
+    created_by = serializers.ReadOnlyField(source='created_by.username')
+    modified_by = serializers.ReadOnlyField(source='modified_by.username')
+
+    class Meta:
+        model = PaymentEntry
+        fields = ['invoice_id','invoice_type','payment_type', 'amount', 'created_by',
+                  'modified_by']
+        read_only_fields = ['created_by', 'modified_by', 'modified_at']
+
 
 class PurchaseItemSerializer(serializers.ModelSerializer):
     item = serializers.SerializerMethodField()
@@ -183,13 +193,31 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                                             required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
+    payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
+
+    def validate(self, data):
+        payments = data.get('payments', [])
+        for payment in payments:
+            if 'amount' not in payment:
+                raise serializers.ValidationError(
+                    "All payment entries must have an 'amount'.")
+            if 'payment_type' not in payment:
+                raise serializers.ValidationError(
+                    "All payment entries must have a 'payment_type'.")
+        total_payment = sum(float(p['amount']) for p in payments)
+        total_invoice = float(data.get('total_with_vat_aed', 0)) or float(
+            data.get('total_with_vat_usd', 0))
+        return data
+
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'supplier', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed']
+                  'items', 'discount_usd', 'discount_aed', 'payments']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
+        payments_data = validated_data.pop('payments', [])
+
         with transaction.atomic():
             try:
                 invoice = PurchaseInvoice.objects.create(**validated_data)
@@ -209,6 +237,14 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
             except Exception as e:
                 transaction.set_rollback(True)
                 raise e
+
+            # create payment entries
+            for payment in payments_data:
+                PaymentEntry.objects.create(invoice_id=invoice.id,
+                                            invoice_type='purchase',
+                    payment_type=payment['payment_type'],
+                    amount=payment['amount'],
+                    created_by=self.context['request'].user)
         return invoice
 
 class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
@@ -338,6 +374,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
+    payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
 
     class Meta:
         model = SaleInvoice
@@ -349,13 +386,29 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'discount_usd',
             'discount_aed',
             'has_service_fee',
-            'service_fee'
+            'service_fee',
+            'payments'
         ]
+
+    def validate(self, data):
+        payments = data.get('payments', [])
+        for payment in payments:
+            if 'amount' not in payment:
+                raise serializers.ValidationError(
+                    "All payment entries must have an 'amount'.")
+            if 'payment_type' not in payment:
+                raise serializers.ValidationError(
+                    "All payment entries must have a 'payment_type'.")
+        total_payment = sum(float(p['amount']) for p in payments)
+        total_invoice = float(data.get('total_with_vat_aed', 0)) or float(
+            data.get('total_with_vat_usd', 0))
+        return data
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         has_service_fee = validated_data.pop('has_service_fee', False)
         service_fee_data = validated_data.pop('service_fee', None)
+        payments_data = validated_data.pop('payments',[])
 
         # No need to pop, use defaults in the model itself
         invoice = SaleInvoice.objects.create(**validated_data)
@@ -371,6 +424,15 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             ServiceFee.objects.create(sales_invoice=invoice,
                 **service_fee_data)
         invoice.calculate_totals()
+
+        # create payment entries
+        print(payments_data, "Payments data in create method")
+        for payment in payments_data:
+            print(payment)
+            PaymentEntry.objects.create(invoice_id=invoice.id,
+                                        invoice_type='sale',
+                payment_type=payment['payment_type'], amount=payment['amount'],
+                created_by=self.context['request'].user)
         return invoice
 
 
@@ -505,11 +567,3 @@ class SalaryEntrySerializer(serializers.ModelSerializer):
         ]
 
 
-class PaymentEntrySerializer(serializers.ModelSerializer):
-    created_by = serializers.ReadOnlyField(source='created_by.username')
-    modified_by = serializers.ReadOnlyField(source='modified_by.username')
-
-    class Meta:
-        model = PaymentEntry
-        fields = '__all__'
-        read_only_fields = ['created_by', 'modified_by', 'modified_at']

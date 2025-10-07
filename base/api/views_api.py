@@ -8,7 +8,7 @@ from django.forms.models import model_to_dict
 from .serializers import *
 from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import PurchaseInvoiceFilter, SaleInvoiceFilter
+from .filters import PurchaseInvoiceFilter, SaleInvoiceFilter, PaymentEntryFilter
 from decimal import Decimal
 from datetime import date
 
@@ -20,24 +20,7 @@ from django.contrib.auth.models import User
 from base.api.pagination import CustomPagination
 from collections import defaultdict
 from django.db.models import Q
-
-
-def log_activity(request, action, instance, changes=None):
-    def convert_decimal(obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return obj
-
-    if changes:
-        changes = {k: {'old': convert_decimal(v['old']),
-                       'new': convert_decimal(v['new'])} for k, v in
-                   changes.items()}
-
-    content_type = ContentType.objects.get_for_model(instance)
-    UserActivity.objects.create(user=request.user, content_type=content_type,
-        object_id=instance.id, action=action, changes=changes,
-        ip_address=request.META.get('REMOTE_ADDR'),
-        user_agent=request.META.get('HTTP_USER_AGENT'))
+from base.utils import log_activity, update_cash_account
 
 
 class CustomAuthToken(ObtainAuthToken):
@@ -231,11 +214,26 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
     filterset_class = PurchaseInvoiceFilter
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        with transaction.atomic():
+            instance = serializer.save(created_by=self.request.user)
+            if instance.status == PurchaseInvoice.STATUS_APPROVED:
+                payment_entries = PaymentEntry.objects.filter(invoice_id=instance.id)
+                for entry in payment_entries:
+                    update_cash_account(entry.payment_type, entry.amount, 'withdrawal', self.request.user)
+            log_activity(self.request, 'create', instance)
 
     def perform_update(self, serializer):
-        serializer.save(modified_by=self.request.user,
-                        modified_at=timezone.now())
+        with transaction.atomic():
+            old_instance = self.get_object()
+            old_status = old_instance.status
+            instance = serializer.save(modified_by=self.request.user, modified_at=timezone.now())
+
+            if old_status != PurchaseInvoice.STATUS_APPROVED and instance.status == PurchaseInvoice.STATUS_APPROVED:
+                payment_entries = PaymentEntry.objects.filter(invoice_id=instance.id)
+                for entry in payment_entries:
+                    update_cash_account(entry.payment_type, entry.amount, 'withdrawal', self.request.user)
+
+            log_activity(self.request, 'update', instance)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -277,8 +275,16 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
     filterset_class = SaleInvoiceFilter
 
     def perform_create(self, serializer):
-        instance = serializer.save(created_by=self.request.user)
-        log_activity(self.request, 'create', instance)
+        with transaction.atomic():
+            instance = serializer.save(created_by=self.request.user)
+            if instance.status == SaleInvoice.STATUS_APPROVED:
+                payment_entries = PaymentEntry.objects.filter(
+                    invoice_id=instance.id)
+                for entry in payment_entries:
+                    update_cash_account(entry.payment_type, entry.amount,
+                                        'deposit', self.request.user)
+            log_activity(self.request, 'create', instance)
+
 
     def perform_update(self, serializer):
         def convert_decimal(obj):
@@ -286,16 +292,25 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
                 return float(obj)
             return obj
 
-        old_instance = self.get_object()
-        old_data = {k: convert_decimal(v) for k, v in
-                    model_to_dict(old_instance).items()}
-        instance = serializer.save(modified_by=self.request.user,
-                                   modified_at=timezone.now())
-        new_data = {k: convert_decimal(v) for k, v in
-                    model_to_dict(instance).items()}
-        changes = {k: {'old': old_data[k], 'new': v} for k, v in
-                   new_data.items() if old_data[k] != v}
-        log_activity(self.request, 'update', instance, changes)
+        with transaction.atomic():
+            old_instance = self.get_object()
+            old_status = old_instance.status
+
+            old_data = {k: convert_decimal(v) for k, v in
+                        model_to_dict(old_instance).items()}
+            instance = serializer.save(modified_by=self.request.user,
+                                       modified_at=timezone.now())
+            new_data = {k: convert_decimal(v) for k, v in
+                        model_to_dict(instance).items()}
+            changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                       new_data.items() if old_data[k] != v}
+            if old_status != SaleInvoice.STATUS_APPROVED and instance.status == SaleInvoice.STATUS_APPROVED:
+                payment_entries = PaymentEntry.objects.filter(
+                    invoice_id=instance.id)
+                for entry in payment_entries:
+                    update_cash_account(entry.payment_type, entry.amount,
+                                        'deposit', self.request.user)
+            log_activity(self.request, 'update', instance, changes)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -816,6 +831,8 @@ class PaymentEntryViewSet(viewsets.ModelViewSet):
     queryset = PaymentEntry.objects.all()
     serializer_class = PaymentEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = PaymentEntryFilter
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
