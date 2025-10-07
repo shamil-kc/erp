@@ -63,9 +63,12 @@ class PurchaseInvoice(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_IN_PROGRESS = 'in_progress'
     STATUS_APPROVED = 'approved'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_Returned = 'returned'
     STATUS_CHOICES = [(STATUS_PENDING, 'Pending'),
         (STATUS_IN_PROGRESS, 'Payment In Progress'),
-        (STATUS_APPROVED, 'Approved')]
+        (STATUS_APPROVED, 'Approved'),(STATUS_CANCELLED, 'Cancelled'),
+                      (STATUS_Returned, 'Returned')]
 
     invoice_no = models.CharField(max_length=50, unique=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES,
@@ -180,9 +183,12 @@ class SaleInvoice(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_IN_PROGRESS = 'in_progress'
     STATUS_APPROVED = 'approved'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_Returned = 'returned'
     STATUS_CHOICES = [(STATUS_PENDING, 'Pending'),
         (STATUS_IN_PROGRESS, 'Payment In Progress'),
-        (STATUS_APPROVED, 'Approved')]
+        (STATUS_APPROVED, 'Approved'),(STATUS_CANCELLED, 'Cancelled'),
+                      (STATUS_Returned, 'Returned')]
 
     invoice_no = models.CharField(max_length=50, unique=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES,
