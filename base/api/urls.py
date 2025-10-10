@@ -22,6 +22,7 @@ router.register('accounts', AccountViewSet)
 router.register('designations', DesignationViewSet)
 router.register(r'servicefees', ServiceFeeViewSet)
 router.register(r'due-payments', PaymentEntryViewSet)
+router.register(r'commissions', CommissionViewSet)
 
 # For reports:
 from .views_api import InventoryReportAPIView

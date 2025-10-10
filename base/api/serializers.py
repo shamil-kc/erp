@@ -329,6 +329,10 @@ class ServiceFeeSerializer(serializers.ModelSerializer):
         model = ServiceFee
         fields = '__all__'
 
+class CommissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Commission
+        fields = '__all__'
 
 
 class ServiceFeeNestedSerializer(serializers.ModelSerializer):
@@ -364,6 +368,7 @@ class SaleItemNestedSerializer(serializers.Serializer):
 class SaleInvoiceSerializer(serializers.ModelSerializer):
     sale_items = SaleItemSerializer(many=True, read_only=True)
     service_fees = ServiceFeeSerializer(many=True, read_only=True)
+    commissions = CommissionSerializer(many=True, read_only=True)  # add commissions
     class Meta:
         model = SaleInvoice
         fields = '__all__'
@@ -374,6 +379,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
+    has_commission = serializers.BooleanField(write_only=True, default=False)  # add
+    commission = CommissionSerializer(write_only=True, required=False)  # add
     payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
 
     class Meta:
@@ -387,6 +394,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'discount_aed',
             'has_service_fee',
             'service_fee',
+            'has_commission',
+            'commission',
             'payments'
         ]
 
@@ -404,13 +413,30 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             data.get('total_with_vat_usd', 0))
         return data
 
+    class Meta:
+        model = SaleInvoice
+        fields = [
+            'invoice_no',
+            'customer_name',
+            'sale_date',
+            'items',
+            'discount_usd',
+            'discount_aed',
+            'has_service_fee',
+            'service_fee',
+            'has_commission',
+            'commission',
+            'payments'
+        ]
+
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         has_service_fee = validated_data.pop('has_service_fee', False)
         service_fee_data = validated_data.pop('service_fee', None)
+        has_commission = validated_data.pop('has_commission', False)
+        commission_data = validated_data.pop('commission', None)
         payments_data = validated_data.pop('payments',[])
 
-        # No need to pop, use defaults in the model itself
         invoice = SaleInvoice.objects.create(**validated_data)
         for item in items_data:
             SaleItem.objects.create(invoice=invoice, item=item['item'],
@@ -423,6 +449,10 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
         if has_service_fee and service_fee_data:
             ServiceFee.objects.create(sales_invoice=invoice,
                 **service_fee_data)
+        # create commission if applicable
+        if has_commission and commission_data:
+            Commission.objects.create(sales_invoice=invoice, **commission_data)
+
         invoice.calculate_totals()
 
         # create payment entries
@@ -435,23 +465,27 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
                 created_by=self.context['request'].user)
         return invoice
 
-
 class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
+    has_commission = serializers.BooleanField(write_only=True, default=False)  # add
+    commission = CommissionSerializer(write_only=True, required=False)         # add
 
     class Meta:
         model = SaleInvoice
         fields = ['invoice_no', 'customer_name', 'sale_date', 'discount_usd',
-                  'discount_aed', 'items','has_service_fee', 'service_fee']
+                  'discount_aed', 'items','has_service_fee', 'service_fee',
+                  'has_commission', 'commission']  # add commission fields
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
         has_service_fee = validated_data.pop('has_service_fee', False)
         service_fee_data = validated_data.pop('service_fee', None)
+        has_commission = validated_data.pop('has_commission', False)  # add
+        commission_data = validated_data.pop('commission', None)       # add
 
         with transaction.atomic():
             for attr, value in validated_data.items():
@@ -492,7 +526,6 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                             shipping_aed=item_data.get('shipping_aed', 0), )
             # Handle service fee
             if has_service_fee and service_fee_data:
-                # Update or create ServiceFee for this invoice
                 service_fee_qs = ServiceFee.objects.filter(
                     sales_invoice=instance)
                 if service_fee_qs.exists():
@@ -504,8 +537,20 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                     ServiceFee.objects.create(sales_invoice=instance,
                         **service_fee_data)
             elif not has_service_fee:
-                # If flag is False, optionally delete existing service fee linked
                 ServiceFee.objects.filter(sales_invoice=instance).delete()
+
+            # Handle commission
+            if has_commission and commission_data:
+                commission_qs = Commission.objects.filter(sales_invoice=instance)
+                if commission_qs.exists():
+                    commission_obj = commission_qs.first()
+                    for attr, value in commission_data.items():
+                        setattr(commission_obj, attr, value)
+                    commission_obj.save()
+                else:
+                    Commission.objects.create(sales_invoice=instance, **commission_data)
+            elif not has_commission:
+                Commission.objects.filter(sales_invoice=instance).delete()
 
             instance.calculate_totals()
         return instance
@@ -565,5 +610,3 @@ class SalaryEntrySerializer(serializers.ModelSerializer):
             'id', 'account', 'account_id', 'amount_aed', 'amount_usd',
             'entry_type', 'date', 'notes'
         ]
-
-

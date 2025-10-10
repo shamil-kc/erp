@@ -404,6 +404,33 @@ class ServiceFee(models.Model):
         return f"Standalone Service Fee {self.id}"
 
 
+class Commission(models.Model):
+    sales_invoice = models.ForeignKey(
+        SaleInvoice,
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name='commissions',  # changed from 'service_fees'
+        help_text='Optional: Associated sales invoice'
+    )
+    description = models.TextField(blank=True, null=True)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
+    transaction_type = models.CharField(max_length=25, choices=['credit', 'debit'],
+                                        default='debit')
+
+    def __str__(self):
+        if self.sales_invoice:
+            return f"Commission Fee for Invoice {self.sales_invoice.invoice_no}"
+        return f"Service Fee {self.id}"
+
+
 class PaymentEntry(models.Model):
     PAYMENT_TYPE_CHOICES = (('cash', 'Cash'), ('bank', 'Bank'),
                             ('check', 'Check'),)
