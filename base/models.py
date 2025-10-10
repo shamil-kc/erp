@@ -459,69 +459,45 @@ class UserActivity(models.Model):
 
 
 class CashAccount(models.Model):
-    ACCOUNT_TYPE_CHOICES = (
-        ('cash_in_hand', 'Cash In Hand'),
-        ('cash_in_bank', 'Cash In Bank'),
-        ('check_cash', 'Check Cash'),
-    )
-    name = models.CharField(max_length=100)
-    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPE_CHOICES)
-    balance = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    # Only one row should exist for the company
+    cash_in_hand = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    cash_in_bank = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    check_cash = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def deposit(self, amount):
-        self.balance += amount
+    def deposit(self, amount, account_type):
+        if account_type == 'cash_in_hand':
+            self.cash_in_hand += amount
+        elif account_type == 'cash_in_bank':
+            self.cash_in_bank += amount
+        elif account_type == 'check_cash':
+            self.check_cash += amount
+        else:
+            raise ValueError("Invalid account type")
         self.save()
-        Transaction.objects.create(
-            account=self, amount=amount, transaction_type='deposit', timestamp=timezone.now()
-        )
 
-    def withdraw(self, amount):
-        if amount > self.balance:
-            raise ValueError("Insufficient funds!")
-        self.balance -= amount
+    def withdraw(self, amount, account_type):
+        if account_type == 'cash_in_hand':
+            if amount > self.cash_in_hand:
+                raise ValueError("Insufficient funds in cash in hand!")
+            self.cash_in_hand -= amount
+        elif account_type == 'cash_in_bank':
+            if amount > self.cash_in_bank:
+                raise ValueError("Insufficient funds in cash in bank!")
+            self.cash_in_bank -= amount
+        elif account_type == 'check_cash':
+            if amount > self.check_cash:
+                raise ValueError("Insufficient funds in check cash!")
+            self.check_cash -= amount
+        else:
+            raise ValueError("Invalid account type")
         self.save()
-        Transaction.objects.create(
-            account=self, amount=amount, transaction_type='withdrawal', timestamp=timezone.now()
-        )
 
-    def transfer(self, to_account, amount):
-        if amount > self.balance:
-            raise ValueError("Insufficient funds for transfer!")
-        if self == to_account:
-            raise ValueError("Cannot transfer to the same account!")
-        with db_transaction.atomic():
-            self.withdraw(amount)
-            to_account.deposit(amount)
-            AccountTransfer.objects.create(
-                from_account=self,
-                to_account=to_account,
-                amount=amount,
-                timestamp=timezone.now()
-            )
+    def transfer(self, from_type, to_type, amount):
+        if from_type == to_type:
+            raise ValueError("Cannot transfer to the same account type!")
+        self.withdraw(amount, from_type)
+        self.deposit(amount, to_type)
 
     def __str__(self):
-        return f"{self.name}: {self.account_type} — ₹{self.balance}"
-
-class Transaction(models.Model):
-    TRANSACTION_TYPE_CHOICES = (
-        ('deposit', 'Deposit'),
-        ('withdrawal', 'Withdrawal'),
-    )
-    account = models.ForeignKey(CashAccount, on_delete=models.CASCADE, related_name='transactions')
-    amount = models.DecimalField(max_digits=14, decimal_places=2)
-    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
-    timestamp = models.DateTimeField(default=timezone.now)
-
-    def __str__(self):
-        return f"{self.account.name} — {self.transaction_type}: ₹{self.amount}"
-
-class AccountTransfer(models.Model):
-    from_account = models.ForeignKey(CashAccount, on_delete=models.CASCADE, related_name='outgoing_transfers')
-    to_account = models.ForeignKey(CashAccount, on_delete=models.CASCADE, related_name='incoming_transfers')
-    amount = models.DecimalField(max_digits=14, decimal_places=2)
-    timestamp = models.DateTimeField(default=timezone.now)
-
-    def __str__(self):
-        return f"Transfer {self.amount} from {self.from_account.name} to {self.to_account.name} at {self.timestamp}"
-
+        return f"CashAccount — Cash: ₹{self.cash_in_hand}, Bank: ₹{self.cash_in_bank}, Check: ₹{self.check_cash}"

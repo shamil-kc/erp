@@ -8,8 +8,7 @@ from django.contrib import admin
 from .models import (Product, ProductType, ProductGrade, ProductItem,
                      PurchaseItem, PurchaseInvoice, SaleInvoice, SaleItem, Tax,
                      ExpenseType, Expense, Account, SalaryEntry, Designation,
-                     ServiceFee, UserActivity, CashAccount, Transaction,
-                     AccountTransfer, PaymentEntry)
+                     ServiceFee, UserActivity, CashAccount, PaymentEntry)
 
 
 @admin.register(Product)
@@ -226,20 +225,6 @@ class CashAccountAdmin(admin.ModelAdmin):
     list_filter = ('account_type',)
     search_fields = ('name',)
 
-
-@admin.register(Transaction)
-class TransactionAdmin(admin.ModelAdmin):
-    list_display = ('account', 'amount', 'transaction_type', 'timestamp')
-    list_filter = ('transaction_type', 'timestamp')
-    search_fields = ('account__name',)
-    date_hierarchy = 'timestamp'
-
-
-@admin.register(AccountTransfer)
-class AccountTransferAdmin(admin.ModelAdmin):
-    list_display = ('from_account', 'to_account', 'amount', 'timestamp')
-    search_fields = ('from_account__name', 'to_account__name')
-    date_hierarchy = 'timestamp'
 
 
 @admin.register(PaymentEntry)

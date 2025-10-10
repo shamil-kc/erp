@@ -20,7 +20,7 @@ from django.contrib.auth.models import User
 from base.api.pagination import CustomPagination
 from collections import defaultdict
 from django.db.models import Q
-from base.utils import log_activity, update_cash_account
+from base.utils import log_activity
 
 
 class CustomAuthToken(ObtainAuthToken):
@@ -217,10 +217,11 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             instance = serializer.save(created_by=self.request.user)
             if instance.status == PurchaseInvoice.STATUS_APPROVED:
-                payment_entries = PaymentEntry.objects.filter(invoice_id=instance.id)
+                cash_account = CashAccount.objects.first()
+                payment_entries = PaymentEntry.objects.filter(
+                    invoice_id=instance.id, invoice_type='purchase')
                 for entry in payment_entries:
-                    update_cash_account(entry.payment_type, entry.amount, 'withdrawal', self.request.user)
-            log_activity(self.request, 'create', instance)
+                    cash_account.withdraw(entry.amount, f"cash_in_{entry.payment_type}")
 
     def perform_update(self, serializer):
         with transaction.atomic():
@@ -229,11 +230,12 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
             instance = serializer.save(modified_by=self.request.user, modified_at=timezone.now())
 
             if old_status != PurchaseInvoice.STATUS_APPROVED and instance.status == PurchaseInvoice.STATUS_APPROVED:
-                payment_entries = PaymentEntry.objects.filter(invoice_id=instance.id)
+                cash_account = CashAccount.objects.first()
+                payment_entries = PaymentEntry.objects.filter(
+                    invoice_id=instance.id, invoice_type='sale')
                 for entry in payment_entries:
-                    update_cash_account(entry.payment_type, entry.amount, 'withdrawal', self.request.user)
-
-            log_activity(self.request, 'update', instance)
+                    cash_account.withdraw(entry.amount,
+                                          f"cash_in_{entry.payment_type}")
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -278,12 +280,12 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             instance = serializer.save(created_by=self.request.user)
             if instance.status == SaleInvoice.STATUS_APPROVED:
+                cash_account = CashAccount.objects.first()
                 payment_entries = PaymentEntry.objects.filter(
-                    invoice_id=instance.id)
+                    invoice_id=instance.id, invoice_type='sale')
                 for entry in payment_entries:
-                    update_cash_account(entry.payment_type, entry.amount,
-                                        'deposit', self.request.user)
-            log_activity(self.request, 'create', instance)
+                    cash_account.withdraw(entry.amount,
+                                          f"cash_in_{entry.payment_type}")
 
 
     def perform_update(self, serializer):
@@ -305,11 +307,12 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
             changes = {k: {'old': old_data[k], 'new': v} for k, v in
                        new_data.items() if old_data[k] != v}
             if old_status != SaleInvoice.STATUS_APPROVED and instance.status == SaleInvoice.STATUS_APPROVED:
+                cash_account = CashAccount.objects.first()
                 payment_entries = PaymentEntry.objects.filter(
-                    invoice_id=instance.id)
+                    invoice_id=instance.id, invoice_type='sale')
                 for entry in payment_entries:
-                    update_cash_account(entry.payment_type, entry.amount,
-                                        'deposit', self.request.user)
+                    cash_account.withdraw(entry.amount,
+                                          f"cash_in_{entry.payment_type}")
             log_activity(self.request, 'update', instance, changes)
 
     def get_serializer_class(self):
@@ -373,8 +376,8 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
-        log_activity(self.request, 'create', instance)
-
+        cash_account = CashAccount.objects.first()
+        cash_account.withdraw(instance.amount_aed, CashAccount.ACCOUNT_TYPE_CASH)
     def perform_update(self, serializer):
         old_instance = self.get_object()
         old_data = model_to_dict(old_instance)
@@ -405,7 +408,7 @@ class SalaryEntryViewSet(viewsets.ModelViewSet):
                    new_data.items() if old_data[k] != v}
         log_activity(self.request, 'update', instance, changes)
 
-
+        # No cash logic on update (only on create)
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
@@ -798,10 +801,10 @@ class ServiceFeeViewSet(viewsets.ModelViewSet):
         serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
 
-
-class RemindersAPIView(APIView):
-    """GET = fetch today's reminders, POST = mark a reminder as shown."""
-
+        instance = serializer.save(created_by=self.request.user)
+        cash_account = CashAccount.objects.first()
+        cash_account.deposit(instance.amount_aed, CashAccount.ACCOUNT_TYPE_CASH)
+        log_activity(self.request, 'create', instance)
     def get(self, request):
         """Return all reminders for today that are not shown yet."""
         today = date.today()
