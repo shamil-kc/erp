@@ -91,6 +91,10 @@ class PurchaseInvoice(models.Model):
     discount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     discount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
 
+    outside_or_inside = models.CharField(
+        max_length=20, choices=[('inside', 'Inside'), ('outside', 'Outside')],
+        default='inside')
+
     def __str__(self):
         return f"Invoice {self.invoice_no}"
 
@@ -210,6 +214,10 @@ class SaleInvoice(models.Model):
     # Add these fields -- default to zero
     discount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    outside_or_inside = models.CharField(
+        max_length=20, choices=[('inside', 'Inside'), ('outside', 'Outside')],
+        default='inside')
 
     def calculate_totals(self):
         total_usd = sum(item.amount_usd for item in self.sale_items.all())
