@@ -200,23 +200,19 @@ class ProductItemViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='purchase-info')
     def full_info(self, request):
         """
-        Returns all product items, each with purchase item and invoice data.
-        If no purchase exists for a product item, returns None for purchase data.
+        Returns all product items, each with purchase item and invoice data
+        only for products with stock > 0.
         """
         items = ProductItem.objects.all()
         result = []
         for item in items:
-            purchase_items = PurchaseItem.objects.filter(item=item)
-            if not purchase_items.exists():
-                result.append({
-                    'product_item': ProductItemSerializer(item).data,
-                    'purchase_item': None,
-                    'purchase_invoice': None
-                })
-            else:
+            stock = getattr(item, 'stock', None)
+            if stock and stock.quantity > 0:
+                purchase_items = PurchaseItem.objects.filter(item=item)
                 for p_item in purchase_items:
                     result.append({
                         'product_item': ProductItemSerializer(item).data,
+                        'stock': stock.quantity,
                         'purchase_item': {
                             'id': p_item.id,
                             'qty': p_item.qty,

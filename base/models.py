@@ -177,6 +177,10 @@ class PurchaseItem(models.Model):
         self.amount_usd = (self.unit_price_usd + self.shipping_per_unit_usd) * self.qty
         self.amount_aed = (self.unit_price_aed + self.shipping_per_unit_aed) * self.qty
         super().save(*args, **kwargs)
+        # Update stock
+        stock, created = Stock.objects.get_or_create(product_item=self.item)
+        stock.quantity += self.qty
+        stock.save()
 
     def __str__(self):
         return f"{self.qty}x {self.item} @ {self.unit_price_usd}"
@@ -297,6 +301,10 @@ class SaleItem(models.Model):
         self.amount_usd = self.qty * self.sale_price_usd
         self.amount_aed = self.qty * self.sale_price_aed
         super().save(*args, **kwargs)
+        # Reduce stock
+        stock, created = Stock.objects.get_or_create(product_item=self.item)
+        stock.quantity -= self.qty
+        stock.save()
 
     def __str__(self):
         return f"{self.qty}x {self.item} @ {self.sale_price_usd}"
@@ -547,3 +555,12 @@ class CashAccount(models.Model):
 
     def __str__(self):
         return f"CashAccount — Cash: ₹{self.cash_in_hand}, Bank: ₹{self.cash_in_bank}, Check: ₹{self.check_cash}"
+
+
+class Stock(models.Model):
+    product_item = models.OneToOneField(ProductItem, on_delete=models.CASCADE, related_name='stock')
+    quantity = models.IntegerField(default=0)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Stock for {self.product_item}: {self.quantity}"
