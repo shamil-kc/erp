@@ -11,6 +11,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .filters import PurchaseInvoiceFilter, SaleInvoiceFilter, PaymentEntryFilter
 from decimal import Decimal
 from datetime import date
+from django.db import transaction
+from rest_framework.decorators import action
 
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
@@ -193,6 +195,48 @@ class ProductItemViewSet(viewsets.ModelViewSet):
         if self.action in ['update', 'partial_update']:
             return ProductItemUpdateSerializer
         return ProductItemSerializer
+
+
+    @action(detail=False, methods=['get'], url_path='purchase-info')
+    def full_info(self, request):
+        """
+        Returns all product items, each with purchase item and invoice data.
+        If no purchase exists for a product item, returns None for purchase data.
+        """
+        items = ProductItem.objects.all()
+        result = []
+        for item in items:
+            purchase_items = PurchaseItem.objects.filter(item=item)
+            if not purchase_items.exists():
+                result.append({
+                    'product_item': ProductItemSerializer(item).data,
+                    'purchase_item': None,
+                    'purchase_invoice': None
+                })
+            else:
+                for p_item in purchase_items:
+                    result.append({
+                        'product_item': ProductItemSerializer(item).data,
+                        'purchase_item': {
+                            'id': p_item.id,
+                            'qty': p_item.qty,
+                            'unit_price_usd': p_item.unit_price_usd,
+                            'unit_price_aed': p_item.unit_price_aed,
+                            'shipping_per_unit_usd': p_item.shipping_per_unit_usd,
+                            'shipping_per_unit_aed': p_item.shipping_per_unit_aed,
+                            'factors': p_item.factors,
+                            'tax': p_item.tax_id,
+                        },
+                        'purchase_invoice': {
+                            'id': p_item.invoice.id,
+                            'invoice_no': p_item.invoice.invoice_no,
+                            'supplier': p_item.invoice.supplier,
+                            'purchase_date': p_item.invoice.purchase_date,
+                            'status': p_item.invoice.status,
+                        }
+                    })
+        return Response(result)
+
 
 class ProductItemBulkCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
