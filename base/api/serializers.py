@@ -453,10 +453,43 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
-        has_tax = validated_data.pop('has_tax', True)
-        # ...existing code...
-        invoice = SaleInvoice.objects.create(has_tax=has_tax, **validated_data)
-        # ...existing code...
+        has_service_fee = validated_data.pop('has_service_fee', False)
+        service_fee_data = validated_data.pop('service_fee', None)
+        has_commission = validated_data.pop('has_commission', False)
+        commission_data = validated_data.pop('commission', None)
+        payments_data = validated_data.pop('payments',[])
+
+        invoice = SaleInvoice.objects.create(**validated_data)
+        for item in items_data:
+            SaleItem.objects.create(
+                invoice=invoice,
+                item=item['item'],
+                qty=item['qty'],
+                sale_price_usd=item['sale_price_usd'],
+                sale_price_aed=item['sale_price_aed'],
+                shipping_usd=item.get('shipping_usd', 0),
+                shipping_aed=item.get('shipping_aed', 0),
+                purchase_item=item.get('purchase_item')  # unified field
+            )
+
+        # create service_fee if applicable
+        if has_service_fee and service_fee_data:
+            ServiceFee.objects.create(sales_invoice=invoice,
+                **service_fee_data)
+        # create commission if applicable
+        if has_commission and commission_data:
+            Commission.objects.create(sales_invoice=invoice, **commission_data)
+
+        invoice.calculate_totals()
+
+        # create payment entries
+        print(payments_data, "Payments data in create method")
+        for payment in payments_data:
+            print(payment)
+            PaymentEntry.objects.create(invoice_id=invoice.id,
+                                        invoice_type='sale',
+                payment_type=payment['payment_type'], amount=payment['amount'],
+                created_by=self.context['request'].user)
         return invoice
 
 class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
