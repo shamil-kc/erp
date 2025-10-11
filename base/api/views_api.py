@@ -961,3 +961,16 @@ class CommissionViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
+
+class EmployeeLeaveViewSet(viewsets.ModelViewSet):
+    queryset = EmployeeLeave.objects.all()
+    serializer_class = EmployeeLeaveSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['account', 'leave_type', 'approved', 'start_date', 'end_date']
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user, modified_at=timezone.now())

@@ -24,6 +24,7 @@ router.register(r'servicefees', ServiceFeeViewSet)
 router.register(r'due-payments', PaymentEntryViewSet)
 router.register(r'commissions', CommissionViewSet)
 router.register(r'parties', PartyViewSet)
+router.register(r'employee-leaves', EmployeeLeaveViewSet)
 
 # For reports:
 from .views_api import InventoryReportAPIView

@@ -579,3 +579,25 @@ class Stock(models.Model):
 
     def __str__(self):
         return f"Stock for {self.product_item}: {self.quantity}"
+
+class EmployeeLeave(models.Model):
+    LEAVE_TYPE_CHOICES = [
+        ('annual', 'Annual'),
+        ('sick', 'Sick'),
+        ('unpaid', 'Unpaid'),
+        ('other', 'Other'),
+    ]
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='leaves')
+    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPE_CHOICES)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    reason = models.TextField(blank=True, null=True)
+    approved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return f"{self.account.name} - {self.leave_type} ({self.start_date} to {self.end_date})"
+

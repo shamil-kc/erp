@@ -654,3 +654,14 @@ class SalaryEntrySerializer(serializers.ModelSerializer):
             'id', 'account', 'account_id', 'amount_aed', 'amount_usd',
             'entry_type', 'date', 'notes'
         ]
+
+class EmployeeLeaveSerializer(serializers.ModelSerializer):
+    account = AccountSerializer(read_only=True)
+    account_id = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all(), source='account', write_only=True)
+
+    class Meta:
+        model = EmployeeLeave
+        fields = [
+            'id', 'account', 'account_id', 'leave_type', 'start_date', 'end_date',
+            'reason', 'approved', 'created_at', 'created_by', 'modified_at', 'modified_by'
+        ]
