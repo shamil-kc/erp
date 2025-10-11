@@ -202,13 +202,51 @@ class ProductItemViewSet(viewsets.ModelViewSet):
         """
         Returns all product items (only once), each with all approved purchase items and invoice data,
         only for products with stock > 0.
+        If 'product_id' is passed as a query param, returns only that product's purchase item, invoice info, and stock.
         """
+        product_id = request.query_params.get('product_id')
         items = ProductItem.objects.all()
+        if product_id:
+            items = items.filter(id=product_id)
+            for item in items:
+                stock = getattr(item, 'stock', None)
+                if stock and stock.quantity > 0:
+                    purchase_items = PurchaseItem.objects.filter(
+                        item=item,
+                        invoice__status=PurchaseInvoice.STATUS_APPROVED
+                    )
+                    purchases = []
+                    for p_item in purchase_items:
+                        purchases.append({
+                            'purchase_item': {
+                                'id': p_item.id,
+                                'qty': p_item.qty,
+                                'unit_price_usd': p_item.unit_price_usd,
+                                'unit_price_aed': p_item.unit_price_aed,
+                                'shipping_per_unit_usd': p_item.shipping_per_unit_usd,
+                                'shipping_per_unit_aed': p_item.shipping_per_unit_aed,
+                                'factors': p_item.factors,
+                                'tax': p_item.tax_id,
+                            },
+                            'purchase_invoice': {
+                                'id': p_item.invoice.id,
+                                'invoice_no': p_item.invoice.invoice_no,
+                                'supplier': p_item.invoice.supplier,
+                                'purchase_date': p_item.invoice.purchase_date,
+                                'status': p_item.invoice.status,
+                            }
+                        })
+                    # Only return purchase item, invoice details, and stock
+                    return Response({
+                        'stock': stock.quantity,
+                        'purchases': purchases
+                    })
+            return Response({'stock': None, 'purchases': []})  # If no matching product or no stock
+        # For all products with stock > 0
         result = []
         for item in items:
             stock = getattr(item, 'stock', None)
             if stock and stock.quantity > 0:
-                # Only approved purchases
                 purchase_items = PurchaseItem.objects.filter(
                     item=item,
                     invoice__status=PurchaseInvoice.STATUS_APPROVED
@@ -235,7 +273,6 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                         }
                     })
                 result.append({
-                    'product_item': ProductItemSerializer(item).data,
                     'stock': stock.quantity,
                     'purchases': purchases
                 })
