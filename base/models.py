@@ -182,7 +182,6 @@ class PurchaseItem(models.Model):
         return f"{self.qty}x {self.item} @ {self.unit_price_usd}"
 
 
-
 class SaleInvoice(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_IN_PROGRESS = 'in_progress'
@@ -195,6 +194,7 @@ class SaleInvoice(models.Model):
                       (STATUS_Returned, 'Returned')]
 
     invoice_no = models.CharField(max_length=50, unique=True)
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES,
                               default=STATUS_PENDING)
     sale_date = models.DateField(default=timezone.now)
@@ -282,6 +282,16 @@ class SaleItem(models.Model):
                                        default=0)
     shipping_aed = models.DecimalField(max_digits=12, decimal_places=2,
                                        default=0)
+
+    # Mapping to identify which purchase this sale item comes from
+    purchase_item = models.ForeignKey(
+        'PurchaseItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sale_items',
+        help_text='The purchase item this sale item is sourced from'
+    )
 
     def save(self, *args, **kwargs):
         self.amount_usd = self.qty * self.sale_price_usd
@@ -413,6 +423,7 @@ class ServiceFee(models.Model):
 
 
 class Commission(models.Model):
+    TRANSACTION_TYPE_CHOICES = [('credit', 'Credit'), ('debit', 'Debit'),]
     sales_invoice = models.ForeignKey(
         SaleInvoice,
         on_delete=models.CASCADE,
@@ -430,7 +441,7 @@ class Commission(models.Model):
                                    related_name='+')
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                     related_name='+')
-    transaction_type = models.CharField(max_length=25, choices=['credit', 'debit'],
+    transaction_type = models.CharField(max_length=25, choices=TRANSACTION_TYPE_CHOICES,
                                         default='debit')
 
     def __str__(self):

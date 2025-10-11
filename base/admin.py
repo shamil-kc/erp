@@ -221,9 +221,7 @@ class UserActivityAdmin(admin.ModelAdmin):
 
 @admin.register(CashAccount)
 class CashAccountAdmin(admin.ModelAdmin):
-    list_display = ('name', 'account_type', 'balance', 'updated_at')
-    list_filter = ('account_type',)
-    search_fields = ('name',)
+    list_display = ('__str__',)
 
 
 
@@ -231,6 +229,3 @@ class CashAccountAdmin(admin.ModelAdmin):
 class PaymentEntryAdmin(admin.ModelAdmin):
     list_display = ('invoice_type', 'invoice_id', 'payment_type', 'amount',
                     'created_at', 'created_by')
-    list_filter = ('invoice_type', 'payment_type', 'created_at')
-    search_fields = ('invoice_id', 'created_by__username')
-    date_hierarchy = 'created_at'

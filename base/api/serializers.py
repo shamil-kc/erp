@@ -343,6 +343,8 @@ class ServiceFeeNestedSerializer(serializers.ModelSerializer):
 
 class SaleItemSerializer(serializers.ModelSerializer):
     item = serializers.SerializerMethodField()
+    purchase_item = serializers.SerializerMethodField()
+
     class Meta:
         model = SaleItem
         fields = '__all__'
@@ -355,6 +357,17 @@ class SaleItemSerializer(serializers.ModelSerializer):
             return data
         return None
 
+    def get_purchase_item(self, obj):
+        if obj.purchase_item:
+            return {
+                'id': obj.purchase_item.id,
+                'item': ProductItemSerializer().get_product_full_name(obj.purchase_item.item),
+                'qty': obj.purchase_item.qty,
+                'unit_price_usd': obj.purchase_item.unit_price_usd,
+                'unit_price_aed': obj.purchase_item.unit_price_aed
+            }
+        return None
+
 class SaleItemNestedSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
     item = serializers.PrimaryKeyRelatedField(queryset=ProductItem.objects.all())
@@ -363,6 +376,10 @@ class SaleItemNestedSerializer(serializers.Serializer):
     sale_price_aed = serializers.DecimalField(max_digits=12, decimal_places=2)
     shipping_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     shipping_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    # Unified field for both input (ID) and output (details)
+    purchase_item = serializers.PrimaryKeyRelatedField(
+        queryset=PurchaseItem.objects.all(), required=False, allow_null=True
+    )
 
 
 class SaleInvoiceSerializer(serializers.ModelSerializer):
@@ -439,11 +456,16 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
 
         invoice = SaleInvoice.objects.create(**validated_data)
         for item in items_data:
-            SaleItem.objects.create(invoice=invoice, item=item['item'],
-                qty=item['qty'], sale_price_usd=item['sale_price_usd'],
+            SaleItem.objects.create(
+                invoice=invoice,
+                item=item['item'],
+                qty=item['qty'],
+                sale_price_usd=item['sale_price_usd'],
                 sale_price_aed=item['sale_price_aed'],
                 shipping_usd=item.get('shipping_usd', 0),
-                shipping_aed=item.get('shipping_aed', 0), )
+                shipping_aed=item.get('shipping_aed', 0),
+                purchase_item=item.get('purchase_item')  # unified field
+            )
 
         # create service_fee if applicable
         if has_service_fee and service_fee_data:
@@ -505,25 +527,28 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                 for item_data in items_data:
                     item_id = item_data.get('id', None)
                     if item_id:
-                        item_instance = SaleItem.objects.get(id=item_id,
-                                                             invoice=instance)
+                        item_instance = SaleItem.objects.get(id=item_id, invoice=instance)
                         for attr, value in item_data.items():
                             if attr == 'id':
                                 continue
                             if attr == 'item':
-                                setattr(item_instance, 'item_id',
-                                        value.id if hasattr(value,
-                                                            'id') else value)
+                                setattr(item_instance, 'item_id', value.id if hasattr(value, 'id') else value)
+                            elif attr == 'purchase_item':
+                                setattr(item_instance, 'purchase_item_id', value.id if hasattr(value, 'id') else value)
                             else:
                                 setattr(item_instance, attr, value)
                         item_instance.save()
                     else:
-                        SaleItem.objects.create(invoice=instance,
-                            item=item_data['item'], qty=item_data['qty'],
+                        SaleItem.objects.create(
+                            invoice=instance,
+                            item=item_data['item'],
+                            qty=item_data['qty'],
                             sale_price_usd=item_data['sale_price_usd'],
                             sale_price_aed=item_data['sale_price_aed'],
                             shipping_usd=item_data.get('shipping_usd', 0),
-                            shipping_aed=item_data.get('shipping_aed', 0), )
+                            shipping_aed=item_data.get('shipping_aed', 0),
+                            purchase_item=item_data.get('purchase_item')
+                        )
             # Handle service fee
             if has_service_fee and service_fee_data:
                 service_fee_qs = ServiceFee.objects.filter(

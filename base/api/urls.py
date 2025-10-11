@@ -38,5 +38,5 @@ urlpatterns = [
          name='purchase-sales-report'),
     path('product-batch-sales-report/', ProductBatchSalesReportAPIView.as_view(), name='product-batch-sales-report'),
     path('tax-summary/', TaxSummaryAPIView.as_view(), name='tax-summary'),
-    path('reminders/', RemindersAPIView.as_view(), name='reminders'),
+    # path('reminders/', RemindersAPIView.as_view(), name='reminders'),
 ]
