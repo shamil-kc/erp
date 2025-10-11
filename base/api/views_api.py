@@ -200,7 +200,7 @@ class ProductItemViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='purchase-info')
     def full_info(self, request):
         """
-        Returns all product items, each with purchase item and invoice data
+        Returns all product items (only once), each with all approved purchase items and invoice data,
         only for products with stock > 0.
         """
         items = ProductItem.objects.all()
@@ -208,11 +208,14 @@ class ProductItemViewSet(viewsets.ModelViewSet):
         for item in items:
             stock = getattr(item, 'stock', None)
             if stock and stock.quantity > 0:
-                purchase_items = PurchaseItem.objects.filter(item=item)
+                # Only approved purchases
+                purchase_items = PurchaseItem.objects.filter(
+                    item=item,
+                    invoice__status=PurchaseInvoice.STATUS_APPROVED
+                )
+                purchases = []
                 for p_item in purchase_items:
-                    result.append({
-                        'product_item': ProductItemSerializer(item).data,
-                        'stock': stock.quantity,
+                    purchases.append({
                         'purchase_item': {
                             'id': p_item.id,
                             'qty': p_item.qty,
@@ -231,6 +234,11 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                             'status': p_item.invoice.status,
                         }
                     })
+                result.append({
+                    'product_item': ProductItemSerializer(item).data,
+                    'stock': stock.quantity,
+                    'purchases': purchases
+                })
         return Response(result)
 
 
