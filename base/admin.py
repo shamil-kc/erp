@@ -97,9 +97,9 @@ class PurchaseItemInline(admin.TabularInline):
 @admin.register(PurchaseInvoice)
 class PurchaseInvoiceAdmin(admin.ModelAdmin):
     list_display = (
-        'invoice_no', 'supplier', 'purchase_date', 'total_with_vat_usd', 'total_with_vat_aed'
+        'invoice_no', 'purchase_date', 'total_with_vat_usd', 'total_with_vat_aed'
     )
-    search_fields = ('invoice_no', 'supplier')
+    search_fields = ('invoice_no',)
     date_hierarchy = 'purchase_date'
     inlines = [PurchaseItemInline]
     autocomplete_fields = []
@@ -143,9 +143,9 @@ class SaleInvoiceAdmin(admin.ModelAdmin):
     Admin for SaleInvoice model.
     Displays invoice details and allows inline editing of related sale items.
     """
-    list_display = ('invoice_no', 'sale_date', 'customer_name', 'created_at')
+    list_display = ('invoice_no', 'sale_date', 'created_at')
     inlines = [SaleItemInline, ServiceFeeInline]
-    search_fields = ('invoice_no', 'customer_name')
+    search_fields = ('invoice_no',)
 
 @admin.register(SaleItem)
 class SaleItemAdmin(admin.ModelAdmin):

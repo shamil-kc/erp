@@ -292,11 +292,25 @@ class ProductItemBulkCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class PartyViewSet(viewsets.ModelViewSet):
+    queryset = Party.objects.all()
+    serializer_class = PartySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['type']
+
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
     queryset = PurchaseInvoice.objects.all()
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = PurchaseInvoiceFilter
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PurchaseInvoiceCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return PurchaseInvoiceUpdateSerializer
+        return PurchaseInvoiceSerializer
 
     def perform_create(self, serializer):
         with transaction.atomic():
@@ -360,6 +374,13 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = SaleInvoiceFilter
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return SaleInvoiceCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return SaleInvoiceUpdateSerializer
+        return SaleInvoiceSerializer  # your existing read serializer
 
     def perform_create(self, serializer):
         with transaction.atomic():

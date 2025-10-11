@@ -169,8 +169,15 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         return None
 
 
+class PartySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Party
+        fields = '__all__'
+
 class PurchaseInvoiceSerializer(serializers.ModelSerializer):
     purchase_items = PurchaseItemSerializer(many=True, read_only=True)
+    party = PartySerializer(read_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party', write_only=True)
     has_tax = serializers.BooleanField(required=False)  # Add this field
     class Meta:
         model = PurchaseInvoice
@@ -190,6 +197,7 @@ class PurchaseItemNestedSerializer(serializers.Serializer):
 
 class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
     has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
@@ -213,7 +221,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseInvoice
-        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes',
+        fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax']
 
     def create(self, validated_data):
@@ -251,6 +259,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
 
 class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
     has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
@@ -258,7 +267,7 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                                             required=False, default=0)
     class Meta:
         model = PurchaseInvoice
-        fields = ['invoice_no', 'supplier', 'purchase_date', 'notes',
+        fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'has_tax']
 
     def update(self, instance, validated_data):
@@ -307,10 +316,8 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             qty=item_data.get('qty'),
                             unit_price_usd=item_data.get('unit_price_usd'),
                             unit_price_aed=item_data.get('unit_price_aed'),
-                            shipping_per_unit_usd=item_data.get(
-                                'shipping_per_unit_usd', 0),
-                            shipping_per_unit_aed=item_data.get(
-                                'shipping_per_unit_aed', 0),
+                            shipping_per_unit_usd=item_data.get('shipping_per_unit_usd', 0),
+                            shipping_per_unit_aed=item_data.get('shipping_per_unit_aed', 0),
                             factors=item_data.get('factors', ''),
                             tax_id=item_data.get('tax'))
 
@@ -385,6 +392,8 @@ class SaleItemNestedSerializer(serializers.Serializer):
 
 class SaleInvoiceSerializer(serializers.ModelSerializer):
     sale_items = SaleItemSerializer(many=True, read_only=True)
+    party = PartySerializer(read_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party', write_only=True)
     service_fees = ServiceFeeSerializer(many=True, read_only=True)
     commissions = CommissionSerializer(many=True, read_only=True)
     has_tax = serializers.BooleanField(required=False)  # Add this field
@@ -394,20 +403,21 @@ class SaleInvoiceSerializer(serializers.ModelSerializer):
 
 class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
     has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
-    has_commission = serializers.BooleanField(write_only=True, default=False)  # add
-    commission = CommissionSerializer(write_only=True, required=False)  # add
+    has_commission = serializers.BooleanField(write_only=True, default=False)
+    commission = CommissionSerializer(write_only=True, required=False)
     payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
 
     class Meta:
         model = SaleInvoice
         fields = [
             'invoice_no',
-            'customer_name',
+            'party_id',
             'sale_date',
             'items',
             'discount_usd',
@@ -438,7 +448,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
         model = SaleInvoice
         fields = [
             'invoice_no',
-            'customer_name',
+            'party_id',
             'sale_date',
             'items',
             'discount_usd',
@@ -469,7 +479,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
                 sale_price_aed=item['sale_price_aed'],
                 shipping_usd=item.get('shipping_usd', 0),
                 shipping_aed=item.get('shipping_aed', 0),
-                purchase_item=item.get('purchase_item')  # unified field
+                purchase_item=item.get('purchase_item')
             )
 
         # create service_fee if applicable
@@ -494,17 +504,18 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
 
 class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
     has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
-    has_commission = serializers.BooleanField(write_only=True, default=False)  # add
-    commission = CommissionSerializer(write_only=True, required=False)         # add
+    has_commission = serializers.BooleanField(write_only=True, default=False)
+    commission = CommissionSerializer(write_only=True, required=False)
 
     class Meta:
         model = SaleInvoice
-        fields = ['invoice_no', 'customer_name', 'sale_date', 'discount_usd',
+        fields = ['invoice_no', 'party_id', 'sale_date', 'discount_usd',
                   'discount_aed', 'items','has_service_fee', 'service_fee',
                   'has_commission', 'commission', 'has_tax']
 

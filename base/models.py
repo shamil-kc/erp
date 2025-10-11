@@ -59,6 +59,21 @@ class ProductItem(models.Model):
     def __str__(self):
         return f"{self.grade} - Size {self.size}"
 
+class Party(models.Model):
+    TYPE_CHOICES = (
+        ('customer', 'Customer'),
+        ('supplier', 'Supplier'),
+    )
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=30, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    company_name = models.CharField(max_length=100, blank=True, null=True)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+
+    def __str__(self):
+        return f"{self.name} ({self.type})"
+
 class PurchaseInvoice(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_IN_PROGRESS = 'in_progress'
@@ -73,7 +88,7 @@ class PurchaseInvoice(models.Model):
     invoice_no = models.CharField(max_length=50, unique=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES,
                               default=STATUS_PENDING)
-    supplier = models.CharField(max_length=100, blank=True, null=True)
+    party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_invoices')
     purchase_date = models.DateField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
@@ -203,7 +218,7 @@ class SaleInvoice(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES,
                               default=STATUS_PENDING)
     sale_date = models.DateField(default=timezone.now)
-    customer_name = models.CharField(max_length=200)
+    party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True, related_name='sale_invoices')
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
