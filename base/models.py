@@ -94,6 +94,7 @@ class PurchaseInvoice(models.Model):
     outside_or_inside = models.CharField(
         max_length=20, choices=[('inside', 'Inside'), ('outside', 'Outside')],
         default='inside')
+    has_tax = models.BooleanField(default=True)  # Add this field
 
     def __str__(self):
         return f"Invoice {self.invoice_no}"
@@ -105,8 +106,8 @@ class PurchaseInvoice(models.Model):
         discounted_usd = max(total_usd - (self.discount_usd or Decimal('0')), Decimal('0'))
         discounted_aed = max(total_aed - (self.discount_aed or Decimal('0')), Decimal('0'))
         tax = Tax.objects.filter(active=True).first()
-        vat_usd = discounted_usd * (tax.vat_percent / 100) if tax else Decimal('0')
-        vat_aed = discounted_aed * (tax.vat_percent / 100) if tax else Decimal('0')
+        vat_usd = discounted_usd * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
+        vat_aed = discounted_aed * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
         self.vat_amount_usd = vat_usd
         self.total_with_vat_usd = discounted_usd + vat_usd
         self.vat_amount_aed = vat_aed
@@ -222,6 +223,7 @@ class SaleInvoice(models.Model):
     outside_or_inside = models.CharField(
         max_length=20, choices=[('inside', 'Inside'), ('outside', 'Outside')],
         default='inside')
+    has_tax = models.BooleanField(default=True)  # Add this field
 
     def calculate_totals(self):
         total_usd = sum(item.amount_usd for item in self.sale_items.all())
@@ -244,10 +246,8 @@ class SaleInvoice(models.Model):
                              Decimal('0'))
 
         tax = Tax.objects.filter(active=True).first()
-        vat_usd = discounted_usd * (tax.vat_percent / 100) if tax else Decimal(
-            '0')
-        vat_aed = discounted_aed * (tax.vat_percent / 100) if tax else Decimal(
-            '0')
+        vat_usd = discounted_usd * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
+        vat_aed = discounted_aed * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
 
         self.vat_amount_usd = vat_usd
         self.total_with_vat_usd = discounted_usd + vat_usd

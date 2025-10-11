@@ -171,6 +171,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
 
 class PurchaseInvoiceSerializer(serializers.ModelSerializer):
     purchase_items = PurchaseItemSerializer(many=True, read_only=True)
+    has_tax = serializers.BooleanField(required=False)  # Add this field
     class Meta:
         model = PurchaseInvoice
         fields = '__all__'
@@ -189,6 +190,7 @@ class PurchaseItemNestedSerializer(serializers.Serializer):
 
 class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
+    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
@@ -212,15 +214,15 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'supplier', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed', 'payments']
+                  'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         payments_data = validated_data.pop('payments', [])
-
+        has_tax = validated_data.pop('has_tax', True)
         with transaction.atomic():
             try:
-                invoice = PurchaseInvoice.objects.create(**validated_data)
+                invoice = PurchaseInvoice.objects.create(has_tax=has_tax, **validated_data)
                 for item in items_data:
                     PurchaseItem.objects.create(
                         invoice=invoice,
@@ -249,6 +251,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
 
 class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
+    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
@@ -256,18 +259,16 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'supplier', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed' ]
-
-    from django.db import transaction
+                  'items', 'discount_usd', 'discount_aed', 'has_tax']
 
     def update(self, instance, validated_data):
-        items_data = validated_data.pop('items',
-                                        None)  # match nested field name 'items'
-
+        items_data = validated_data.pop('items', None)
+        has_tax = validated_data.pop('has_tax', instance.has_tax)
         with transaction.atomic():
             # Update invoice fields
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
+            instance.has_tax = has_tax
             instance.save()
 
             if items_data is not None:
@@ -385,13 +386,15 @@ class SaleItemNestedSerializer(serializers.Serializer):
 class SaleInvoiceSerializer(serializers.ModelSerializer):
     sale_items = SaleItemSerializer(many=True, read_only=True)
     service_fees = ServiceFeeSerializer(many=True, read_only=True)
-    commissions = CommissionSerializer(many=True, read_only=True)  # add commissions
+    commissions = CommissionSerializer(many=True, read_only=True)
+    has_tax = serializers.BooleanField(required=False)  # Add this field
     class Meta:
         model = SaleInvoice
         fields = '__all__'
 
 class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
+    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
@@ -413,7 +416,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'service_fee',
             'has_commission',
             'commission',
-            'payments'
+            'payments',
+            'has_tax'
         ]
 
     def validate(self, data):
@@ -443,52 +447,21 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'service_fee',
             'has_commission',
             'commission',
-            'payments'
+            'payments',
+            'has_tax'
         ]
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
-        has_service_fee = validated_data.pop('has_service_fee', False)
-        service_fee_data = validated_data.pop('service_fee', None)
-        has_commission = validated_data.pop('has_commission', False)
-        commission_data = validated_data.pop('commission', None)
-        payments_data = validated_data.pop('payments',[])
-
-        invoice = SaleInvoice.objects.create(**validated_data)
-        for item in items_data:
-            SaleItem.objects.create(
-                invoice=invoice,
-                item=item['item'],
-                qty=item['qty'],
-                sale_price_usd=item['sale_price_usd'],
-                sale_price_aed=item['sale_price_aed'],
-                shipping_usd=item.get('shipping_usd', 0),
-                shipping_aed=item.get('shipping_aed', 0),
-                purchase_item=item.get('purchase_item')  # unified field
-            )
-
-        # create service_fee if applicable
-        if has_service_fee and service_fee_data:
-            ServiceFee.objects.create(sales_invoice=invoice,
-                **service_fee_data)
-        # create commission if applicable
-        if has_commission and commission_data:
-            Commission.objects.create(sales_invoice=invoice, **commission_data)
-
-        invoice.calculate_totals()
-
-        # create payment entries
-        print(payments_data, "Payments data in create method")
-        for payment in payments_data:
-            print(payment)
-            PaymentEntry.objects.create(invoice_id=invoice.id,
-                                        invoice_type='sale',
-                payment_type=payment['payment_type'], amount=payment['amount'],
-                created_by=self.context['request'].user)
+        has_tax = validated_data.pop('has_tax', True)
+        # ...existing code...
+        invoice = SaleInvoice.objects.create(has_tax=has_tax, **validated_data)
+        # ...existing code...
         return invoice
 
 class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
+    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
@@ -500,18 +473,20 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
         model = SaleInvoice
         fields = ['invoice_no', 'customer_name', 'sale_date', 'discount_usd',
                   'discount_aed', 'items','has_service_fee', 'service_fee',
-                  'has_commission', 'commission']  # add commission fields
+                  'has_commission', 'commission', 'has_tax']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
         has_service_fee = validated_data.pop('has_service_fee', False)
         service_fee_data = validated_data.pop('service_fee', None)
-        has_commission = validated_data.pop('has_commission', False)  # add
-        commission_data = validated_data.pop('commission', None)       # add
+        has_commission = validated_data.pop('has_commission', False)
+        commission_data = validated_data.pop('commission', None)
+        has_tax = validated_data.pop('has_tax', instance.has_tax)
 
         with transaction.atomic():
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
+            instance.has_tax = has_tax
             instance.save()
 
             if items_data is not None:
