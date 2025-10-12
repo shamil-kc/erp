@@ -203,20 +203,28 @@ class PurchaseItem(models.Model):
 
 
 class SaleInvoice(models.Model):
+    STATUS_SALES_TEAM_PENDING = 'sales_team_pending'
+    STATUS_SALES_TEAM_APPROVED = 'sales_team_approved'
     STATUS_PENDING = 'pending'
     STATUS_IN_PROGRESS = 'in_progress'
     STATUS_APPROVED = 'approved'
     STATUS_CANCELLED = 'cancelled'
-    STATUS_Returned = 'returned'
-    STATUS_CHOICES = [(STATUS_PENDING, 'Pending'),
+    STATUS_RETURNED = 'returned'
+    STATUS_CHOICES = [
+        (STATUS_SALES_TEAM_PENDING, 'Sales Team Pending (Proforma)'),
+        (STATUS_SALES_TEAM_APPROVED, 'Sales Team Approved (Proforma)'),
+        (STATUS_PENDING, 'Pending'),
         (STATUS_IN_PROGRESS, 'Payment In Progress'),
-        (STATUS_APPROVED, 'Approved'),(STATUS_CANCELLED, 'Cancelled'),
-                      (STATUS_Returned, 'Returned')]
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_CANCELLED, 'Cancelled'),
+        (STATUS_RETURNED, 'Returned'),
+    ]
 
     invoice_no = models.CharField(max_length=50, unique=True)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
-                              default=STATUS_PENDING)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES,
+                              default=STATUS_SALES_TEAM_PENDING)
+    is_sales_approved = models.BooleanField(default=False)
     sale_date = models.DateField(default=timezone.now)
     party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True, related_name='sale_invoices')
     created_at = models.DateTimeField(auto_now_add=True)

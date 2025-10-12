@@ -143,9 +143,10 @@ class SaleInvoiceAdmin(admin.ModelAdmin):
     Admin for SaleInvoice model.
     Displays invoice details and allows inline editing of related sale items.
     """
-    list_display = ('invoice_no', 'sale_date', 'created_at')
+    list_display = ('invoice_no', 'sale_date', 'created_at', 'status')
     inlines = [SaleItemInline, ServiceFeeInline]
     search_fields = ('invoice_no',)
+    list_filter = ('status',)
 
 @admin.register(SaleItem)
 class SaleItemAdmin(admin.ModelAdmin):
