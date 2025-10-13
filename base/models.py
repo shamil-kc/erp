@@ -482,7 +482,7 @@ class Commission(models.Model):
 
 
 class PaymentEntry(models.Model):
-    PAYMENT_TYPE_CHOICES = (('cash', 'Cash'), ('bank', 'Bank'),
+    PAYMENT_TYPE_CHOICES = (('hand', 'Cash'), ('bank', 'Bank'),
                             ('check', 'Check'),)
 
     invoice_type = models.CharField(max_length=10,
@@ -506,13 +506,6 @@ class PaymentEntry(models.Model):
     def __str__(self):
         return f"{self.payment_type} payment of {self.amount} for {self.invoice_type} invoice #{self.invoice_id}"
 
-    def clean(self):
-        if not (self.purchase_invoice or self.sale_invoice):
-            raise ValidationError(
-                "Must specify either purchase or sale invoice")
-        if self.purchase_invoice and self.sale_invoice:
-            raise ValidationError(
-                "Cannot specify both purchase and sale invoice")
 
 
 class UserActivity(models.Model):

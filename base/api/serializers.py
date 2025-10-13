@@ -268,7 +268,7 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed', 'has_tax']
+                  'items', 'discount_usd', 'discount_aed', 'has_tax', 'status']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
@@ -482,9 +482,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
         invoice.calculate_totals()
 
         # create payment entries
-        print(payments_data, "Payments data in create method")
         for payment in payments_data:
-            print(payment)
             PaymentEntry.objects.create(invoice_id=invoice.id,
                                         invoice_type='sale',
                 payment_type=payment['payment_type'], amount=payment['amount'],
