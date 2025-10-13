@@ -396,7 +396,8 @@ class SaleInvoiceSerializer(serializers.ModelSerializer):
     party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party', write_only=True)
     service_fees = ServiceFeeSerializer(many=True, read_only=True)
     commissions = CommissionSerializer(many=True, read_only=True)
-    has_tax = serializers.BooleanField(required=False)  # Add this field
+    has_tax = serializers.BooleanField(required=False)
+    is_sales_approved = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     class Meta:
         model = SaleInvoice
@@ -414,6 +415,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     commission = CommissionSerializer(write_only=True, required=False)
     payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
+    is_sales_approved = serializers.BooleanField(required=False)
 
     class Meta:
         model = SaleInvoice
@@ -430,7 +432,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'commission',
             'payments',
             'has_tax',
-            'status'
+            'status',
+            'is_sales_approved'
         ]
 
     def validate(self, data):
@@ -446,24 +449,6 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
         total_invoice = float(data.get('total_with_vat_aed', 0)) or float(
             data.get('total_with_vat_usd', 0))
         return data
-
-    class Meta:
-        model = SaleInvoice
-        fields = [
-            'invoice_no',
-            'party_id',
-            'sale_date',
-            'items',
-            'discount_usd',
-            'discount_aed',
-            'has_service_fee',
-            'service_fee',
-            'has_commission',
-            'commission',
-            'payments',
-            'has_tax',
-            'status'
-        ]
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
@@ -517,12 +502,13 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     has_commission = serializers.BooleanField(write_only=True, default=False)
     commission = CommissionSerializer(write_only=True, required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
+    is_sales_approved = serializers.BooleanField(required=False)
 
     class Meta:
         model = SaleInvoice
         fields = ['invoice_no', 'party_id', 'sale_date', 'discount_usd',
                   'discount_aed', 'items','has_service_fee', 'service_fee',
-                  'has_commission', 'commission', 'has_tax', 'status']
+                  'has_commission', 'commission', 'has_tax', 'status', 'is_sales_approved']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
