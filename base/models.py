@@ -357,6 +357,8 @@ class ExpenseType(models.Model):
 
 
 class Expense(models.Model):
+    PAYMENT_TYPE_CHOICES = (('hand', 'Cash'), ('bank', 'Bank'),
+                            ('check', 'Check'),)
     type = models.ForeignKey(ExpenseType, on_delete=models.CASCADE)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
@@ -365,6 +367,8 @@ class Expense(models.Model):
     is_reminder_needed = models.BooleanField(default=False)
     reminder_date = models.DateField(blank=True, null=True)
     is_shown = models.BooleanField(default=False)
+    payment_type= models.CharField(max_length=25,
+                                   choices=PAYMENT_TYPE_CHOICES, default='hand')
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
