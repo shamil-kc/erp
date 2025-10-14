@@ -977,3 +977,19 @@ class EmployeeLeaveViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user, modified_at=timezone.now())
+
+class CashAccountAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        cash_account = CashAccount.objects.first()
+        if not cash_account:
+            return Response({"error": "No cash account found."}, status=status.HTTP_404_NOT_FOUND)
+        data = {
+            "cash_in_hand": float(cash_account.cash_in_hand),
+            "cash_in_bank": float(cash_account.cash_in_bank),
+            "check_cash": float(cash_account.check_cash),
+            "updated_at": cash_account.updated_at,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
