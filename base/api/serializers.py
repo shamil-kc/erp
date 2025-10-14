@@ -641,7 +641,7 @@ class SalaryEntrySerializer(serializers.ModelSerializer):
         model = SalaryEntry
         fields = [
             'id', 'account', 'account_id', 'amount_aed', 'amount_usd',
-            'entry_type', 'date', 'notes'
+            'entry_type', 'date', 'notes', 'payment_type'
         ]
 
 class EmployeeLeaveSerializer(serializers.ModelSerializer):

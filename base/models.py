@@ -411,6 +411,8 @@ class Account(models.Model):
 
 
 class SalaryEntry(models.Model):
+    PAYMENT_TYPE_CHOICES = (('hand', 'Cash'), ('bank', 'Bank'),
+                            ('check', 'Check'),)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
@@ -419,6 +421,9 @@ class SalaryEntry(models.Model):
         ('bonus', 'Bonus'),
         ('reimbursement', 'Reimbursement')
     ])
+    payment_type = models.CharField(max_length=25,
+                                    choices=PAYMENT_TYPE_CHOICES,
+                                    default='hand')
     date = models.DateField(default=timezone.now)
     notes = models.CharField(max_length=250, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)

@@ -502,6 +502,9 @@ class SalaryEntryViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
+        cash_account = CashAccount.objects.first()
+        cash_account.withdraw(instance.amount_aed,
+                              f'cash_in_{instance.payment_type}')
         log_activity(self.request, 'create', instance)
 
     def perform_update(self, serializer):
