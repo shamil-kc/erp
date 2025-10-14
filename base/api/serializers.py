@@ -654,3 +654,10 @@ class EmployeeLeaveSerializer(serializers.ModelSerializer):
             'id', 'account', 'account_id', 'leave_type', 'start_date', 'end_date',
             'reason', 'approved', 'created_at', 'created_by', 'modified_at', 'modified_by'
         ]
+
+
+class WageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wage
+        fields = ['id', 'amount_aed',
+                  'date', 'notes',  'payment_type']

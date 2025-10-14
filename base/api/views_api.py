@@ -997,3 +997,23 @@ class CashAccountAPIView(APIView):
             response[cash_account.type] = data
         return Response(response, status=status.HTTP_200_OK)
 
+
+class WageViewSet(viewsets.ModelViewSet):
+    queryset = Wage.objects.all()
+    serializer_class = WageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        cash_account = CashAccount.objects.first()
+        cash_account.withdraw(instance.amount_aed, f'cash_in_{instance.payment_type}')
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_data = model_to_dict(old_instance)
+        instance = serializer.save(modified_by=self.request.user,
+                                   modified_at=timezone.now())
+        new_data = model_to_dict(instance)
+        changes = {k: {'old': old_data[k], 'new': v} for k, v in
+                   new_data.items() if old_data[k] != v}
+        log_activity(self.request, 'update', instance, changes)
+

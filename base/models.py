@@ -614,3 +614,21 @@ class EmployeeLeave(models.Model):
     def __str__(self):
         return f"{self.account.name} - {self.leave_type} ({self.start_date} to {self.end_date})"
 
+class Wage(models.Model):
+    PAYMENT_TYPE_CHOICES = (('hand', 'Cash'), ('bank', 'Bank'),
+                            ('check', 'Check'),)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    date = models.DateField(default=timezone.now)
+    notes = models.CharField(max_length=250, blank=True, null=True)
+    payment_type= models.CharField(max_length=25,
+                                   choices=PAYMENT_TYPE_CHOICES, default='hand')
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
+
+    def __str__(self):
+        return (f"{self.id} AED {self.amount_aed} / USD {self.amount_usd} on"
+                f" {self.date}")
