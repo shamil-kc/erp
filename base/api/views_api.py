@@ -982,14 +982,18 @@ class CashAccountAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        cash_account = CashAccount.objects.first()
-        if not cash_account:
+        response = {}
+        cash_accounts = CashAccount.objects.all()
+        if not cash_accounts:
             return Response({"error": "No cash account found."}, status=status.HTTP_404_NOT_FOUND)
-        data = {
-            "cash_in_hand": float(cash_account.cash_in_hand),
-            "cash_in_bank": float(cash_account.cash_in_bank),
-            "check_cash": float(cash_account.check_cash),
-            "updated_at": cash_account.updated_at,
-        }
-        return Response(data, status=status.HTTP_200_OK)
+        for cash_account in cash_accounts:
+            data = {
+                "cash_in_hand": float(cash_account.cash_in_hand),
+                "cash_in_bank": float(cash_account.cash_in_bank),
+                "check_cash": float(cash_account.check_cash),
+                "updated_at": cash_account.updated_at,
+                "account_type": cash_account.type
+            }
+            response[cash_account.type] = data
+        return Response(response, status=status.HTTP_200_OK)
 

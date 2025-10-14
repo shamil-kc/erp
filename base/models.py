@@ -542,6 +542,9 @@ class CashAccount(models.Model):
     cash_in_hand = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     cash_in_bank = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     check_cash = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    type = models.CharField(
+        max_length=20, choices=(('main', 'Main'), ('profit', 'Profit')),
+        default='main', unique=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def deposit(self, amount, account_type):
