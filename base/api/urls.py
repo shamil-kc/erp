@@ -44,4 +44,5 @@ urlpatterns = [
     # path('reminders/', RemindersAPIView.as_view(), name='reminders'),
     path('cash-account/', CashAccountAPIView.as_view(), name='cash-account'),
     path('check-approve/', CheckApproveAPIView.as_view(), name='check-approve'),
+    path('reminders/', RemindersAPIView.as_view(), name='reminders'),
 ]

@@ -1049,3 +1049,40 @@ class CheckApproveAPIView(APIView):
             "moved_amount": float(amount),
             "updated_at": cash_account.updated_at,
         }, status=status.HTTP_200_OK)
+
+class RemindersAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        today = date.today()
+        expense_reminders = Expense.objects.filter(
+            is_reminder_needed=True,
+            reminder_date=today
+        )
+        expense_data = ExpenseSerializer(expense_reminders, many=True).data
+
+        # Future: add other reminder types here as needed
+        reminders = {
+            "expense": expense_data,
+        }
+        return Response(reminders, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """
+        Mark a reminder as shown. Future-compatible: supports 'type' and 'id'.
+        Example payload: { "type": "expense", "id": 123 }
+        """
+        reminder_type = request.data.get("type", "expense")
+        reminder_id = request.data.get("id")
+        if not reminder_id:
+            return Response({"error": "id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if reminder_type == "expense":
+            try:
+                expense = Expense.objects.get(pk=reminder_id)
+                expense.is_shown = True
+                expense.save()
+                return Response({"status": "success"}, status=status.HTTP_200_OK)
+            except Expense.DoesNotExist:
+                return Response({"error": "Expense not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Unsupported reminder type"}, status=status.HTTP_400_BAD_REQUEST)
