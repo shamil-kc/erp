@@ -43,4 +43,5 @@ urlpatterns = [
     path('tax-summary/', TaxSummaryAPIView.as_view(), name='tax-summary'),
     # path('reminders/', RemindersAPIView.as_view(), name='reminders'),
     path('cash-account/', CashAccountAPIView.as_view(), name='cash-account'),
+    path('check-approve/', CheckApproveAPIView.as_view(), name='check-approve'),
 ]

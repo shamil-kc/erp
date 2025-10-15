@@ -1017,3 +1017,35 @@ class WageViewSet(viewsets.ModelViewSet):
                    new_data.items() if old_data[k] != v}
         log_activity(self.request, 'update', instance, changes)
 
+
+class CheckApproveAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        cash_account = CashAccount.objects.filter(type='main').first()
+        if not cash_account:
+            return Response({"error": "No main cash account found."}, status=status.HTTP_404_NOT_FOUND)
+        check_amount = cash_account.check_cash
+
+        amount = request.data.get('amount')
+        try:
+            amount = Decimal(str(amount))
+        except (TypeError, ValueError):
+            return Response({"error": "Valid 'amount' is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if amount <= 0:
+            return Response({"error": "Amount must be positive."}, status=status.HTTP_400_BAD_REQUEST)
+        if amount > check_amount:
+            return Response({"error": "Amount exceeds available check cash."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Move specified amount from check to bank
+        cash_account.check_cash -= amount
+        cash_account.cash_in_bank += amount
+        cash_account.save()
+        return Response({
+            "cash_in_hand": float(cash_account.cash_in_hand),
+            "cash_in_bank": float(cash_account.cash_in_bank),
+            "check_cash": float(cash_account.check_cash),
+            "moved_amount": float(amount),
+            "updated_at": cash_account.updated_at,
+        }, status=status.HTTP_200_OK)
