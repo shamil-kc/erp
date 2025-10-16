@@ -231,7 +231,7 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                             'purchase_invoice': {
                                 'id': p_item.invoice.id,
                                 'invoice_no': p_item.invoice.invoice_no,
-                                'supplier': p_item.invoice.supplier,
+                                'supplier': p_item.invoice.party,
                                 'purchase_date': p_item.invoice.purchase_date,
                                 'status': p_item.invoice.status,
                             }
