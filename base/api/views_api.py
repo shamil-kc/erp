@@ -389,8 +389,7 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
                 payment_entries = PaymentEntry.objects.filter(
                     invoice_id=instance.id, invoice_type='sale')
                 for entry in payment_entries:
-                    cash_account.deposit(entry.amount,
-                                          f"cash_in_{entry.payment_type}")
+                    cash_account.deposit(entry.amount,f"cash_in_{entry.payment_type}")
 
 
     def perform_update(self, serializer):
@@ -416,8 +415,7 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
                 payment_entries = PaymentEntry.objects.filter(
                     invoice_id=instance.id, invoice_type='sale')
                 for entry in payment_entries:
-                    cash_account.deposit(entry.amount, f"cash_in"
-                                                        f"_{entry.payment_type}")
+                    cash_account.deposit(entry.amount, f"cash_in_{entry.payment_type}")
 
             log_activity(self.request, 'update', instance, changes)
 
