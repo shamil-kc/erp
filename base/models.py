@@ -552,7 +552,7 @@ class CashAccount(models.Model):
             self.cash_in_hand += amount
         elif account_type == 'cash_in_bank':
             self.cash_in_bank += amount
-        elif account_type == 'cash_in_cash':
+        elif account_type == 'cash_in_check':
             self.check_cash += amount
         else:
             raise ValueError("Invalid account type")
@@ -567,7 +567,7 @@ class CashAccount(models.Model):
             if amount > self.cash_in_bank:
                 raise ValueError("Insufficient funds in cash in bank!")
             self.cash_in_bank -= amount
-        elif account_type == 'check_cash':
+        elif account_type == 'cash_in_check':
             if amount > self.check_cash:
                 raise ValueError("Insufficient funds in check cash!")
             self.check_cash -= amount
