@@ -552,7 +552,7 @@ class CashAccount(models.Model):
             self.cash_in_hand += amount
         elif account_type == 'cash_in_bank':
             self.cash_in_bank += amount
-        elif account_type == 'check_cash':
+        elif account_type == 'cash_in_cash':
             self.check_cash += amount
         else:
             raise ValueError("Invalid account type")
