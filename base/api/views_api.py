@@ -335,7 +335,9 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
                 payment_entries = PaymentEntry.objects.filter(
                     invoice_id=instance.id, invoice_type='purchase')
                 for entry in payment_entries:
-                    cash_account.withdraw(entry.amount,f"cash_in_{entry.payment_type}")
+                    cash_account.withdraw(entry.amount,f"cash_in"
+                                                        f"_{entry.payment_type}")
+
 
     def get_serializer_class(self):
         if self.action == 'create':
