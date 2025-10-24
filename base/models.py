@@ -318,9 +318,42 @@ class SaleItem(models.Model):
     )
 
     def save(self, *args, **kwargs):
+        # Track old quantity and purchase item for updates
+        old_qty = 0
+        old_purchase_item = None
+
+        if self.pk:  # If updating an existing SaleItem
+            try:
+                old_instance = SaleItem.objects.get(pk=self.pk)
+                old_qty = old_instance.qty
+                old_purchase_item = old_instance.purchase_item
+            except SaleItem.DoesNotExist:
+                pass
+
+        # Calculate amounts
         self.amount_usd = self.qty * self.sale_price_usd
         self.amount_aed = self.qty * self.sale_price_aed
         super().save(*args, **kwargs)
+
+        # Update sold_qty for the associated PurchaseItem
+        with db_transaction.atomic():
+            # If the purchase item has changed, adjust the old and new items
+            if old_purchase_item and old_purchase_item != self.purchase_item:
+                old_purchase_item.sold_qty -= old_qty
+                old_purchase_item.save()
+
+            if self.purchase_item:
+                qty_difference = self.qty - old_qty
+                self.purchase_item.sold_qty += qty_difference
+                self.purchase_item.save()
+
+    def delete(self, *args, **kwargs):
+        # Decrease sold_qty when a SaleItem is deleted
+        if self.purchase_item:
+            with db_transaction.atomic():
+                self.purchase_item.sold_qty -= self.qty
+                self.purchase_item.save()
+        super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.qty}x {self.item} @ {self.sale_price_usd}"
