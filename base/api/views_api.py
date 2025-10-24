@@ -217,10 +217,13 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                     )
                     purchases = []
                     for p_item in purchase_items:
+                        if p_item.qty == p_item.sold_qty:
+                            continue
                         purchases.append({
                             'purchase_item': {
                                 'id': p_item.id,
                                 'qty': p_item.qty,
+                                'sold_qty': p_item.sold_qty,
                                 'unit_price_usd': p_item.unit_price_usd,
                                 'unit_price_aed': p_item.unit_price_aed,
                                 'shipping_per_unit_usd': p_item.shipping_per_unit_usd,
@@ -332,8 +335,7 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
                 payment_entries = PaymentEntry.objects.filter(
                     invoice_id=instance.id, invoice_type='purchase')
                 for entry in payment_entries:
-                    cash_account.withdraw(entry.amount,
-                                          f"cash_in_{entry.payment_type}")
+                    cash_account.withdraw(entry.amount,f"cash_in_{entry.payment_type}")
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -385,6 +387,7 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             instance = serializer.save(created_by=self.request.user)
             if instance.status == SaleInvoice.STATUS_APPROVED:
+                instance.sale_items.item.sold_qty += instance.sale_items.qty
                 cash_account = CashAccount.objects.first()
                 payment_entries = PaymentEntry.objects.filter(
                     invoice_id=instance.id, invoice_type='sale')

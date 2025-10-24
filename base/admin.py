@@ -5,10 +5,7 @@ product types, grades, items, purchases, sales, and taxes.
 """
 
 from django.contrib import admin
-from .models import (Product, ProductType, ProductGrade, ProductItem,
-                     PurchaseItem, PurchaseInvoice, SaleInvoice, SaleItem, Tax,
-                     ExpenseType, Expense, Account, SalaryEntry, Designation,
-                     ServiceFee, UserActivity, CashAccount, PaymentEntry)
+from .models import *
 
 
 @admin.register(Product)
@@ -230,3 +227,8 @@ class CashAccountAdmin(admin.ModelAdmin):
 class PaymentEntryAdmin(admin.ModelAdmin):
     list_display = ('invoice_type', 'invoice_id', 'payment_type', 'amount',
                     'created_at', 'created_by')
+
+
+@admin.register(Stock)
+class StockAdmin(admin.ModelAdmin):
+    list_display = ('product_item', 'quantity', 'last_updated')

@@ -311,7 +311,8 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                         item_instance.save()
                     else:
                         # Create new item
-                        PurchaseItem.objects.create(invoice=instance,
+                        PurchaseItem.objects.create(
+                            invoice=instance,
                             item_id=item_data.get('item'),
                             qty=item_data.get('qty'),
                             unit_price_usd=item_data.get('unit_price_usd'),
@@ -322,6 +323,13 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             tax_id=item_data.get('tax'))
 
             instance.calculate_totals()
+            if instance.status == 'approved':
+                # Update stock for each purchase item
+                for purchase_item in instance.purchase_items.all():
+                    stock, created = Stock.objects.get_or_create(
+                        product_item=purchase_item.item)
+                    stock.quantity += purchase_item.qty
+                    stock.save()
 
         return instance
 
@@ -586,6 +594,12 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                 Commission.objects.filter(sales_invoice=instance).delete()
 
             instance.calculate_totals()
+            if instance.status == 'approved':
+                for sale_item in instance.sale_items.all():
+                    stock, created = Stock.objects.get_or_create(
+                        product_item=sale_item.item)
+                    stock.quantity -= sale_item.qty
+                    stock.save()
         return instance
 
 class TaxSerializer(serializers.ModelSerializer):

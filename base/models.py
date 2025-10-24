@@ -159,6 +159,7 @@ class PurchaseItem(models.Model):
     invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='purchase_items')
     item = models.ForeignKey(ProductItem, on_delete=models.CASCADE)
     qty = models.PositiveIntegerField()
+    sold_qty = models.PositiveIntegerField(default=0)
     unit_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
     unit_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
     shipping_per_unit_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -193,10 +194,6 @@ class PurchaseItem(models.Model):
         self.amount_usd = (self.unit_price_usd + self.shipping_per_unit_usd) * self.qty
         self.amount_aed = (self.unit_price_aed + self.shipping_per_unit_aed) * self.qty
         super().save(*args, **kwargs)
-        # Update stock
-        stock, created = Stock.objects.get_or_create(product_item=self.item)
-        stock.quantity += self.qty
-        stock.save()
 
     def __str__(self):
         return f"{self.qty}x {self.item} @ {self.unit_price_usd}"
@@ -324,10 +321,6 @@ class SaleItem(models.Model):
         self.amount_usd = self.qty * self.sale_price_usd
         self.amount_aed = self.qty * self.sale_price_aed
         super().save(*args, **kwargs)
-        # Reduce stock
-        stock, created = Stock.objects.get_or_create(product_item=self.item)
-        stock.quantity -= self.qty
-        stock.save()
 
     def __str__(self):
         return f"{self.qty}x {self.item} @ {self.sale_price_usd}"
