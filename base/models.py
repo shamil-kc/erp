@@ -202,16 +202,17 @@ class PurchaseItem(models.Model):
 class SaleInvoice(models.Model):
     STATUS_SALES_TEAM_PENDING = 'sales_team_pending'
     STATUS_SALES_TEAM_APPROVED = 'sales_team_approved'
-    STATUS_PENDING = 'pending'
-    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_PRODUCTION_PENDING = 'production_pending'
+    STATUS_PAYMENT_PENDING = 'payment_pending'
+    STATUS_PAYMENT_IN_PROGRESS = 'payment_in_progress'
     STATUS_APPROVED = 'approved'
     STATUS_CANCELLED = 'cancelled'
     STATUS_RETURNED = 'returned'
     STATUS_CHOICES = [
         (STATUS_SALES_TEAM_PENDING, 'Sales Team Pending (Proforma)'),
         (STATUS_SALES_TEAM_APPROVED, 'Sales Team Approved (Proforma)'),
-        (STATUS_PENDING, 'Pending'),
-        (STATUS_IN_PROGRESS, 'Payment In Progress'),
+        (STATUS_PAYMENT_PENDING, 'Payment Pending'),
+        (STATUS_PAYMENT_IN_PROGRESS, 'Payment In Progress'),
         (STATUS_APPROVED, 'Approved'),
         (STATUS_CANCELLED, 'Cancelled'),
         (STATUS_RETURNED, 'Returned'),
