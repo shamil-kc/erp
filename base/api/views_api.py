@@ -244,42 +244,33 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                         'stock': stock.quantity,
                         'purchases': purchases
                     })
-            return Response({'stock': None, 'purchases': []})  # If no matching product or no stock
-        # For all products with stock > 0
-        result = []
+            return Response({'stock': None, 'purchases': []})
         for item in items:
             stock = getattr(item, 'stock', None)
             if stock and stock.quantity > 0:
-                purchase_items = PurchaseItem.objects.filter(
-                    item=item,
-                    invoice__status=PurchaseInvoice.STATUS_APPROVED
-                )
+                purchase_items = PurchaseItem.objects.filter(item=item,
+                    invoice__status=PurchaseInvoice.STATUS_APPROVED)
                 purchases = []
                 for p_item in purchase_items:
+                    if p_item.qty == p_item.sold_qty:
+                        continue
                     purchases.append({
-                        'purchase_item': {
-                            'id': p_item.id,
-                            'qty': p_item.qty,
+                        'purchase_item': {'id': p_item.id, 'qty': p_item.qty,
+                            'sold_qty': p_item.sold_qty,
                             'unit_price_usd': p_item.unit_price_usd,
                             'unit_price_aed': p_item.unit_price_aed,
                             'shipping_per_unit_usd': p_item.shipping_per_unit_usd,
                             'shipping_per_unit_aed': p_item.shipping_per_unit_aed,
-                            'factors': p_item.factors,
-                            'tax': p_item.tax_id,
-                        },
-                        'purchase_invoice': {
-                            'id': p_item.invoice.id,
+                            'factors': p_item.factors, 'tax': p_item.tax_id, },
+                        'purchase_invoice': {'id': p_item.invoice.id,
                             'invoice_no': p_item.invoice.invoice_no,
-                            'supplier': p_item.invoice.supplier,
+                            'supplier': p_item.invoice.party.id,
                             'purchase_date': p_item.invoice.purchase_date,
-                            'status': p_item.invoice.status,
-                        }
-                    })
-                result.append({
-                    'stock': stock.quantity,
-                    'purchases': purchases
-                })
-        return Response(result)
+                            'status': p_item.invoice.status, }})
+                # Only return purchase item, invoice details, and stock
+                return Response(
+                    {'stock': stock.quantity, 'purchases': purchases})
+        return Response({'stock': None, 'purchases': []})
 
 
 class ProductItemBulkCreateAPIView(APIView):
