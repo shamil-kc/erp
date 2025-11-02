@@ -222,6 +222,7 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                         purchases.append({
                             'purchase_item': {
                                 'id': p_item.id,
+                                'product_id' : p_item.item.id,
                                 'qty': p_item.qty,
                                 'sold_qty': p_item.sold_qty,
                                 'unit_price_usd': p_item.unit_price_usd,
@@ -255,7 +256,10 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                     if p_item.qty == p_item.sold_qty:
                         continue
                     purchases.append({
-                        'purchase_item': {'id': p_item.id, 'qty': p_item.qty,
+                        'purchase_item': {
+                            'id': p_item.id,
+                            'product_id': p_item.item.id,
+                            'qty': p_item.qty,
                             'sold_qty': p_item.sold_qty,
                             'unit_price_usd': p_item.unit_price_usd,
                             'unit_price_aed': p_item.unit_price_aed,
