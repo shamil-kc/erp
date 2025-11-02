@@ -298,7 +298,7 @@ class PartyViewSet(viewsets.ModelViewSet):
     filterset_fields = ['type']
 
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
-    queryset = PurchaseInvoice.objects.all()
+    queryset = PurchaseInvoice.objects.all().order_by('-modified_at')
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = PurchaseInvoiceFilter
@@ -368,7 +368,7 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
-    queryset = SaleInvoice.objects.all()
+    queryset = SaleInvoice.objects.all().order_by('-modified_at')
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = SaleInvoiceFilter
