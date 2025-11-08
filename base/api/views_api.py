@@ -919,11 +919,70 @@ class PaymentEntryViewSet(viewsets.ModelViewSet):
     filterset_class = PaymentEntryFilter
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        cash_account = CashAccount.objects.first()
+        if cash_account:
+            # For sale invoices, deposit money into appropriate account
+            if instance.invoice_type == 'sale':
+                if instance.payment_type == 'hand':
+                    cash_account.deposit(instance.amount, 'cash_in_hand')
+                elif instance.payment_type == 'bank':
+                    cash_account.deposit(instance.amount, 'cash_in_bank')
+                elif instance.payment_type == 'check':
+                    cash_account.deposit(instance.amount, 'cash_in_check')
+            # For purchase invoices, withdraw money from appropriate account
+            elif instance.invoice_type == 'purchase':
+                if instance.payment_type == 'hand':
+                    cash_account.withdraw(instance.amount, 'cash_in_hand')
+                elif instance.payment_type == 'bank':
+                    cash_account.withdraw(instance.amount, 'cash_in_bank')
+                elif instance.payment_type == 'check':
+                    cash_account.withdraw(instance.amount, 'cash_in_check')
 
     def perform_update(self, serializer):
-        serializer.save(modified_by=self.request.user,
+        old_instance = self.get_object()
+        old_amount = old_instance.amount
+        old_payment_type = old_instance.payment_type
+        
+        instance = serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
+        
+        # Only update cash accounts if amount or payment type changed
+        if old_amount != instance.amount or old_payment_type != instance.payment_type:
+            cash_account = CashAccount.objects.first()
+            if cash_account:
+                with transaction.atomic():
+                    # Reverse the previous transaction
+                    if old_instance.invoice_type == 'sale':
+                        if old_payment_type == 'hand':
+                            cash_account.withdraw(old_amount, 'cash_in_hand')
+                        elif old_payment_type == 'bank':
+                            cash_account.withdraw(old_amount, 'cash_in_bank')
+                        elif old_payment_type == 'check':
+                            cash_account.withdraw(old_amount, 'cash_in_check')
+                    elif old_instance.invoice_type == 'purchase':
+                        if old_payment_type == 'hand':
+                            cash_account.deposit(old_amount, 'cash_in_hand')
+                        elif old_payment_type == 'bank':
+                            cash_account.deposit(old_amount, 'cash_in_bank')
+                        elif old_payment_type == 'check':
+                            cash_account.deposit(old_amount, 'cash_in_check')
+                    
+                    # Apply the new transaction
+                    if instance.invoice_type == 'sale':
+                        if instance.payment_type == 'hand':
+                            cash_account.deposit(instance.amount, 'cash_in_hand')
+                        elif instance.payment_type == 'bank':
+                            cash_account.deposit(instance.amount, 'cash_in_bank')
+                        elif instance.payment_type == 'check':
+                            cash_account.deposit(instance.amount, 'cash_in_check')
+                    elif instance.invoice_type == 'purchase':
+                        if instance.payment_type == 'hand':
+                            cash_account.withdraw(instance.amount, 'cash_in_hand')
+                        elif instance.payment_type == 'bank':
+                            cash_account.withdraw(instance.amount, 'cash_in_bank')
+                        elif instance.payment_type == 'check':
+                            cash_account.withdraw(instance.amount, 'cash_in_check')
 
 class CommissionViewSet(viewsets.ModelViewSet):
     queryset = Commission.objects.all()
