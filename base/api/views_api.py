@@ -313,25 +313,12 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             instance = serializer.save(created_by=self.request.user)
-            if instance.status == PurchaseInvoice.STATUS_APPROVED:
-                cash_account = CashAccount.objects.first()
-                payment_entries = PaymentEntry.objects.filter(
-                    invoice_id=instance.id, invoice_type='purchase')
-                for entry in payment_entries:
-                    cash_account.withdraw(entry.amount, f"cash_in_{entry.payment_type}")
 
     def perform_update(self, serializer):
         with transaction.atomic():
             old_instance = self.get_object()
             old_status = old_instance.status
             instance = serializer.save(modified_by=self.request.user, modified_at=timezone.now())
-            if old_status != PurchaseInvoice.STATUS_APPROVED and instance.status == PurchaseInvoice.STATUS_APPROVED:
-                cash_account = CashAccount.objects.first()
-                payment_entries = PaymentEntry.objects.filter(
-                    invoice_id=instance.id, invoice_type='purchase')
-                for entry in payment_entries:
-                    cash_account.withdraw(entry.amount,f"cash_in"
-                                                        f"_{entry.payment_type}")
 
 
     def get_serializer_class(self):
@@ -383,13 +370,6 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             instance = serializer.save(created_by=self.request.user)
-            if instance.status == SaleInvoice.STATUS_APPROVED:
-                instance.sale_items.item.sold_qty += instance.sale_items.qty
-                cash_account = CashAccount.objects.first()
-                payment_entries = PaymentEntry.objects.filter(
-                    invoice_id=instance.id, invoice_type='sale')
-                for entry in payment_entries:
-                    cash_account.deposit(entry.amount,f"cash_in_{entry.payment_type}")
 
 
     def perform_update(self, serializer):
@@ -410,12 +390,6 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
                         model_to_dict(instance).items()}
             changes = {k: {'old': old_data[k], 'new': v} for k, v in
                        new_data.items() if old_data[k] != v}
-            if old_status != SaleInvoice.STATUS_APPROVED and instance.status == SaleInvoice.STATUS_APPROVED:
-                cash_account = CashAccount.objects.first()
-                payment_entries = PaymentEntry.objects.filter(
-                    invoice_id=instance.id, invoice_type='sale')
-                for entry in payment_entries:
-                    cash_account.deposit(entry.amount, f"cash_in_{entry.payment_type}")
 
             log_activity(self.request, 'update', instance, changes)
 
