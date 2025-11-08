@@ -247,14 +247,6 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
             except Exception as e:
                 transaction.set_rollback(True)
                 raise e
-
-            # create payment entries
-            for payment in payments_data:
-                PaymentEntry.objects.create(invoice_id=invoice.id,
-                                            invoice_type='purchase',
-                    payment_type=payment['payment_type'],
-                    amount=payment['amount'],
-                    created_by=self.context['request'].user)
         return invoice
 
 class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
@@ -488,13 +480,6 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             Commission.objects.create(sales_invoice=invoice, **commission_data)
 
         invoice.calculate_totals()
-
-        # create payment entries
-        for payment in payments_data:
-            PaymentEntry.objects.create(invoice_id=invoice.id,
-                                        invoice_type='sale',
-                payment_type=payment['payment_type'], amount=payment['amount'],
-                created_by=self.context['request'].user)
         return invoice
 
 class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
