@@ -1,5 +1,5 @@
 import django_filters
-from base.models import PaymentEntry
+from banking.models import PaymentEntry
 
 
 class PaymentEntryFilter(django_filters.FilterSet):

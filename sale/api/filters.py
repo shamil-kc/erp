@@ -1,5 +1,5 @@
 import django_filters
-from base.models import SaleInvoice
+from sale.models import SaleInvoice
 
 
 class SaleInvoiceFilter(django_filters.FilterSet):

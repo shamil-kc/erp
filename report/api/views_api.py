@@ -1,5 +1,4 @@
 from rest_framework.views import APIView
-from base.models import *
 from django.db.models import Sum
 from decimal import Decimal
 from rest_framework.response import Response
@@ -8,6 +7,11 @@ from base.api.pagination import CustomPagination
 from collections import defaultdict
 from django.db.models import Q
 from products.api.serializers import ProductItemSerializer
+from products.models import ProductItem
+from purchase.models import PurchaseInvoice, PurchaseItem
+from sale.models import SaleInvoice, SaleItem
+from common.models import Expense
+from employee.models import SalaryEntry
 
 
 class InventoryReportAPIView(APIView):

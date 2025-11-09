@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'common',
     'banking',
     'report',
+    'user'
 
 ]
 

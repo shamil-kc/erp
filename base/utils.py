@@ -1,5 +1,4 @@
-from django.utils import timezone
-from .models import CashAccount, UserActivity
+from user.models import UserActivity
 from django.contrib.contenttypes.models import ContentType
 from decimal import Decimal
 

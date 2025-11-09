@@ -1,11 +1,14 @@
 from rest_framework import serializers
-from base.models import *
 from django.db import transaction
 from products.api.serializers import ProductItemSerializer
 from customer.api.serializers import PartySerializer
 from common.api.serializers import (ServiceFeeSerializer,
     ServiceFeeNestedSerializer, CommissionSerializer)
 from banking.api.serializers import PaymentEntrySerializer
+from sale.models import *
+from purchase.models import PurchaseItem
+from banking.models import PaymentEntry
+from common.models import ServiceFee,Commission
 
 
 class SaleItemSerializer(serializers.ModelSerializer):

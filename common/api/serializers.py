@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from base.models import *
+from common.models import *
 
 
 class ServiceFeeSerializer(serializers.ModelSerializer):

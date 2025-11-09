@@ -1,5 +1,5 @@
 import django_filters
-from base.models import PurchaseInvoice
+from purchase.models import PurchaseInvoice
 
 class PurchaseInvoiceFilter(django_filters.FilterSet):
     purchase_date__gte = django_filters.DateFilter(field_name='purchase_date', lookup_expr='gte')

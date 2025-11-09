@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from base.models import *
+from customer.models import Party
 
 
 class PartySerializer(serializers.ModelSerializer):
