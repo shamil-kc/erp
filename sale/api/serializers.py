@@ -1,0 +1,248 @@
+from rest_framework import serializers
+from base.models import *
+from django.db import transaction
+from products.api.serializers import ProductItemSerializer
+from customer.api.serializers import PartySerializer
+from common.api.serializers import (ServiceFeeSerializer,
+    ServiceFeeNestedSerializer, CommissionSerializer)
+from banking.api.serializers import PaymentEntrySerializer
+
+
+class SaleItemSerializer(serializers.ModelSerializer):
+    item = serializers.SerializerMethodField()
+    purchase_item = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SaleItem
+        fields = '__all__'
+
+    def get_item(self, obj):
+        if obj.item:
+            data = {'product_id': obj.item.id,
+                    'product_full_name': ProductItemSerializer().get_product_full_name(
+                        obj.item)}
+            return data
+        return None
+
+    def get_purchase_item(self, obj):
+        if obj.purchase_item:
+            return {
+                'id': obj.purchase_item.id,
+                'item': ProductItemSerializer().get_product_full_name(obj.purchase_item.item),
+                'qty': obj.purchase_item.qty,
+                'unit_price_usd': obj.purchase_item.unit_price_usd,
+                'unit_price_aed': obj.purchase_item.unit_price_aed
+            }
+        return None
+
+class SaleItemNestedSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    item = serializers.PrimaryKeyRelatedField(queryset=ProductItem.objects.all())
+    qty = serializers.IntegerField()
+    sale_price_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
+    sale_price_aed = serializers.DecimalField(max_digits=12, decimal_places=2)
+    shipping_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    shipping_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    # Unified field for both input (ID) and output (details)
+    purchase_item = serializers.PrimaryKeyRelatedField(
+        queryset=PurchaseItem.objects.all(), required=False, allow_null=True
+    )
+
+
+class SaleInvoiceSerializer(serializers.ModelSerializer):
+    sale_items = SaleItemSerializer(many=True, read_only=True)
+    party = PartySerializer(read_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party', write_only=True)
+    service_fees = ServiceFeeSerializer(many=True, read_only=True)
+    commissions = CommissionSerializer(many=True, read_only=True)
+    has_tax = serializers.BooleanField(required=False)
+    is_sales_approved = serializers.BooleanField(required=False)
+    status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
+    class Meta:
+        model = SaleInvoice
+        fields = '__all__'
+
+class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
+    items = SaleItemNestedSerializer(many=True, write_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
+    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
+    discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    has_service_fee = serializers.BooleanField(write_only=True, default=False)
+    service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
+    has_commission = serializers.BooleanField(write_only=True, default=False)
+    commission = CommissionSerializer(write_only=True, required=False)
+    payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
+    status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
+    is_sales_approved = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = SaleInvoice
+        fields = [
+            'invoice_no',
+            'party_id',
+            'sale_date',
+            'items',
+            'discount_usd',
+            'discount_aed',
+            'has_service_fee',
+            'service_fee',
+            'has_commission',
+            'commission',
+            'payments',
+            'has_tax',
+            'status',
+            'is_sales_approved'
+        ]
+
+    def validate(self, data):
+        payments = data.get('payments', [])
+        for payment in payments:
+            if 'amount' not in payment:
+                raise serializers.ValidationError(
+                    "All payment entries must have an 'amount'.")
+            if 'payment_type' not in payment:
+                raise serializers.ValidationError(
+                    "All payment entries must have a 'payment_type'.")
+        total_payment = sum(float(p['amount']) for p in payments)
+        total_invoice = float(data.get('total_with_vat_aed', 0)) or float(
+            data.get('total_with_vat_usd', 0))
+        return data
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        has_service_fee = validated_data.pop('has_service_fee', False)
+        service_fee_data = validated_data.pop('service_fee', None)
+        has_commission = validated_data.pop('has_commission', False)
+        commission_data = validated_data.pop('commission', None)
+        payments_data = validated_data.pop('payments',[])
+
+        invoice = SaleInvoice.objects.create(**validated_data)
+        for item in items_data:
+            SaleItem.objects.create(
+                invoice=invoice,
+                item=item['item'],
+                qty=item['qty'],
+                sale_price_usd=item['sale_price_usd'],
+                sale_price_aed=item['sale_price_aed'],
+                shipping_usd=item.get('shipping_usd', 0),
+                shipping_aed=item.get('shipping_aed', 0),
+                purchase_item=item.get('purchase_item')
+            )
+
+        # create service_fee if applicable
+        if has_service_fee and service_fee_data:
+            ServiceFee.objects.create(sales_invoice=invoice,
+                **service_fee_data)
+        # create commission if applicable
+        if has_commission and commission_data:
+            Commission.objects.create(sales_invoice=invoice, **commission_data)
+
+        invoice.calculate_totals()
+
+        # create payment entries
+        for payment in payments_data:
+            PaymentEntry.objects.create(invoice_id=invoice.id,
+                                        invoice_type='sale',
+                payment_type=payment['payment_type'], amount=payment['amount'],
+                created_by=self.context['request'].user)
+        return invoice
+
+class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
+    items = SaleItemNestedSerializer(many=True, write_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
+    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
+    discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    has_service_fee = serializers.BooleanField(write_only=True, default=False)
+    service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
+    has_commission = serializers.BooleanField(write_only=True, default=False)
+    commission = CommissionSerializer(write_only=True, required=False)
+    status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
+    is_sales_approved = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = SaleInvoice
+        fields = ['invoice_no', 'party_id', 'sale_date', 'discount_usd',
+                  'discount_aed', 'items','has_service_fee', 'service_fee',
+                  'has_commission', 'commission', 'has_tax', 'status', 'is_sales_approved']
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+        has_service_fee = validated_data.pop('has_service_fee', False)
+        service_fee_data = validated_data.pop('service_fee', None)
+        has_commission = validated_data.pop('has_commission', False)
+        commission_data = validated_data.pop('commission', None)
+        has_tax = validated_data.pop('has_tax', instance.has_tax)
+
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.has_tax = has_tax
+            instance.save()
+
+            if items_data is not None:
+                existing_ids = [item.id for item in instance.sale_items.all()]
+                sent_ids = [item.get('id') for item in items_data if
+                            item.get('id')]
+
+                # Delete removed items
+                for id in existing_ids:
+                    if id not in sent_ids:
+                        SaleItem.objects.filter(id=id).delete()
+
+                for item_data in items_data:
+                    item_id = item_data.get('id', None)
+                    if item_id:
+                        item_instance = SaleItem.objects.get(id=item_id, invoice=instance)
+                        for attr, value in item_data.items():
+                            if attr == 'id':
+                                continue
+                            if attr == 'item':
+                                setattr(item_instance, 'item_id', value.id if hasattr(value, 'id') else value)
+                            elif attr == 'purchase_item':
+                                setattr(item_instance, 'purchase_item_id', value.id if hasattr(value, 'id') else value)
+                            else:
+                                setattr(item_instance, attr, value)
+                        item_instance.save()
+                    else:
+                        SaleItem.objects.create(
+                            invoice=instance,
+                            item=item_data['item'],
+                            qty=item_data['qty'],
+                            sale_price_usd=item_data['sale_price_usd'],
+                            sale_price_aed=item_data['sale_price_aed'],
+                            shipping_usd=item_data.get('shipping_usd', 0),
+                            shipping_aed=item_data.get('shipping_aed', 0),
+                            purchase_item=item_data.get('purchase_item')
+                        )
+            # Handle service fee
+            if has_service_fee and service_fee_data:
+                service_fee_qs = ServiceFee.objects.filter(
+                    sales_invoice=instance)
+                if service_fee_qs.exists():
+                    service_fee_obj = service_fee_qs.first()
+                    for attr, value in service_fee_data.items():
+                        setattr(service_fee_obj, attr, value)
+                    service_fee_obj.save()
+                else:
+                    ServiceFee.objects.create(sales_invoice=instance,
+                        **service_fee_data)
+            elif not has_service_fee:
+                ServiceFee.objects.filter(sales_invoice=instance).delete()
+
+            # Handle commission
+            if has_commission and commission_data:
+                commission_qs = Commission.objects.filter(sales_invoice=instance)
+                if commission_qs.exists():
+                    commission_obj = commission_qs.first()
+                    for attr, value in commission_data.items():
+                        setattr(commission_obj, attr, value)
+                    commission_obj.save()
+                else:
+                    Commission.objects.create(sales_invoice=instance, **commission_data)
+            elif not has_commission:
+                Commission.objects.filter(sales_invoice=instance).delete()
+
+            instance.calculate_totals()
+        return instance

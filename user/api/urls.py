@@ -2,15 +2,8 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .views_api import *
 from products.api.views_api import *
-from employee.api.views_api import *
-from customer.api.views_api import *
-from purchase.api.views_api import *
-from sale.api.views_api import *
-from report.api.views_api import *
-from common.api.views_api import *
-from banking.api.views_api import *
-from user.api.views_api import *
 
 router = DefaultRouter()
 router.register(r'products', ProductViewSet)
@@ -34,6 +27,8 @@ router.register(r'parties', PartyViewSet)
 router.register(r'employee-leaves', EmployeeLeaveViewSet)
 router.register(r'wage', WageViewSet)
 
+# For reports:
+from .views_api import InventoryReportAPIView
 
 urlpatterns = [
     path('', include(router.urls)),
