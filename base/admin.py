@@ -45,7 +45,7 @@ class ProductItemAdmin(admin.ModelAdmin):
     Allows searching by related product fields and autocomplete for grade.
     """
     list_display = (
-        'grade', 'get_product_type', 'get_product', 'size', 'unit', 'weight_kg_each'
+        'grade', 'get_product_type', 'get_product', 'size', 'unit', 'weight_kg_each', 'product_code'
     )
     search_fields = (
         'grade__grade',

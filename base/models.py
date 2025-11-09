@@ -49,6 +49,7 @@ class ProductItem(models.Model):
     size = models.FloatField()
     unit = models.CharField(max_length=20, default='PCs')
     weight_kg_each = models.FloatField()
+    product_code = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
@@ -70,6 +71,13 @@ class Party(models.Model):
     address = models.TextField(blank=True, null=True)
     company_name = models.CharField(max_length=100, blank=True, null=True)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    trn = models.CharField(max_length=50, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                    related_name='+')
 
     def __str__(self):
         return f"{self.name} ({self.type})"

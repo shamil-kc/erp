@@ -50,6 +50,7 @@ class ProductItemCreateSerializer(serializers.Serializer):
     size = serializers.FloatField()
     unit = serializers.CharField()
     weight_kg_each = serializers.FloatField()
+    product_code = serializers.CharField(required=False)
 
 
 class ProductItemUpdateSerializer(serializers.ModelSerializer):
@@ -61,7 +62,7 @@ class ProductItemUpdateSerializer(serializers.ModelSerializer):
         model = ProductItem
         fields = [
             'id', 'product', 'product_type', 'grade',
-            'size', 'unit', 'weight_kg_each', 'grade'  # keep original FK for backward compatibility
+            'size', 'unit', 'weight_kg_each', 'grade', 'product_code'
         ]
 
     def update(self, instance, validated_data):
@@ -119,6 +120,7 @@ class ProductItemBulkCreateSerializer(serializers.Serializer):
                 size=item_data['size'],
                 unit=item_data['unit'],
                 weight_kg_each=item_data['weight_kg_each'],
+                product_code=item_data.get('product_code', '').strip() or None
             )
             created_items.append(product_item_obj)
         return created_items
