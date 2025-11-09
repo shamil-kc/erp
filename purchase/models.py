@@ -36,13 +36,18 @@ class PurchaseInvoice(models.Model):
     vat_amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_with_vat_aed = models.DecimalField(max_digits=13, decimal_places=2, default=0)
 
+    custom_duty_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_duty_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+
     discount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     discount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
 
     outside_or_inside = models.CharField(
         max_length=20, choices=[('inside', 'Inside'), ('outside', 'Outside')],
         default='inside')
-    has_tax = models.BooleanField(default=True)  # Add this field
+    has_tax = models.BooleanField(default=True)
+    has_custom_duty = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Invoice {self.invoice_no}"
@@ -56,6 +61,8 @@ class PurchaseInvoice(models.Model):
         tax = Tax.objects.filter(active=True).first()
         vat_usd = discounted_usd * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
         vat_aed = discounted_aed * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
+        custom_duty_usd = discounted_usd * (tax.custom_duty_percent / 100) if tax and self.has_custom_duty else Decimal('0')
+        custom_duty_aed = discounted_aed * (tax.custom_duty_percent / 100) if tax and self.has_custom_duty else Decimal('0')
         self.vat_amount_usd = vat_usd
         self.total_with_vat_usd = discounted_usd + vat_usd
         self.vat_amount_aed = vat_aed
@@ -64,7 +71,9 @@ class PurchaseInvoice(models.Model):
             vat_amount_usd=vat_usd,
             total_with_vat_usd=discounted_usd + vat_usd,
             vat_amount_aed=vat_aed,
-            total_with_vat_aed=discounted_aed + vat_aed
+            total_with_vat_aed=discounted_aed + vat_aed,
+            custom_duty_usd=custom_duty_usd,
+            custom_duty_aed=custom_duty_aed
         )
 
     def save(self, *args, **kwargs):

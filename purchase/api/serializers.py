@@ -46,7 +46,8 @@ class PurchaseItemNestedSerializer(serializers.Serializer):
 class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
     party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
-    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
+    has_tax = serializers.BooleanField(required=False, default=True)
+    has_custom_duty = serializers.BooleanField(required=False, default=False)
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
@@ -70,7 +71,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax']
+                  'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax', 'has_custom_duty']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
@@ -96,19 +97,13 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                 transaction.set_rollback(True)
                 raise e
 
-            # create payment entries
-            for payment in payments_data:
-                PaymentEntry.objects.create(invoice_id=invoice.id,
-                                            invoice_type='purchase',
-                    payment_type=payment['payment_type'],
-                    amount=payment['amount'],
-                    created_by=self.context['request'].user)
         return invoice
 
 class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = PurchaseItemNestedSerializer(many=True, write_only=True)
     party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
-    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
+    has_tax = serializers.BooleanField(required=False, default=True)
+    has_custom_duty = serializers.BooleanField(required=False, default=False)
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
@@ -116,7 +111,7 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed', 'has_tax', 'status']
+                  'items', 'discount_usd', 'discount_aed', 'has_tax', 'status', 'has_custom_duty']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
@@ -171,13 +166,6 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             tax_id=item_data.get('tax'))
 
             instance.calculate_totals()
-            if instance.status == 'approved':
-                # Update stock for each purchase item
-                for purchase_item in instance.purchase_items.all():
-                    stock, created = Stock.objects.get_or_create(
-                        product_item=purchase_item.item)
-                    stock.quantity += purchase_item.qty
-                    stock.save()
 
         return instance
 
