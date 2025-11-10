@@ -30,6 +30,8 @@ class PurchaseInvoice(models.Model):
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                     related_name='+')
     notes = models.TextField(blank=True, null=True)
+    currency = models.CharField(max_length=3, default='AED')
+    currency_rate = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     vat_amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_with_vat_usd = models.DecimalField(max_digits=13, decimal_places=2, default=0)
