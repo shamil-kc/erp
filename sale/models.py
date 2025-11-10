@@ -52,7 +52,8 @@ class SaleInvoice(models.Model):
     outside_or_inside = models.CharField(
         max_length=20, choices=[('inside', 'Inside'), ('outside', 'Outside')],
         default='inside')
-    has_tax = models.BooleanField(default=True)  # Add this field
+    has_tax = models.BooleanField(default=True)
+    biller_name = models.CharField(max_length=100, blank=True, null=True)
 
     def calculate_totals(self):
         from common.models import Tax

@@ -78,6 +78,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
+    biller_name = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = SaleInvoice
@@ -95,7 +96,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'payments',
             'has_tax',
             'status',
-            'is_sales_approved'
+            'is_sales_approved',
+            'biller_name'
         ]
 
     def validate(self, data):
@@ -163,12 +165,14 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     commission = CommissionSerializer(write_only=True, required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
+    biller_name = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = SaleInvoice
         fields = ['invoice_no', 'party_id', 'sale_date', 'discount_usd',
                   'discount_aed', 'items','has_service_fee', 'service_fee',
-                  'has_commission', 'commission', 'has_tax', 'status', 'is_sales_approved']
+                  'has_commission', 'commission', 'has_tax', 'status',
+                  'is_sales_approved', 'biller_name']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
