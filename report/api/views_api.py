@@ -12,6 +12,7 @@ from purchase.models import PurchaseInvoice, PurchaseItem
 from sale.models import SaleInvoice, SaleItem
 from common.models import Expense
 from employee.models import SalaryEntry
+from inventory.models import Stock
 
 
 class InventoryReportAPIView(APIView):
@@ -21,21 +22,15 @@ class InventoryReportAPIView(APIView):
     def get(self, request):
         items = ProductItem.objects.all()
 
-        purchased_qty_data = dict(
-            PurchaseItem.objects.values_list('item_id')
-            .annotate(s=Sum('qty')).values_list('item_id', 's')
-        )
-        sold_qty_data = dict(
-            SaleItem.objects.values_list('item_id')
-            .annotate(s=Sum('qty')).values_list('item_id', 's')
-        )
-
-        # Calculate stock data list
         result = []
         for item in items:
-            purchased = purchased_qty_data.get(item.id, 0)
-            sold = sold_qty_data.get(item.id, 0)
-            stock = purchased - sold
+            stock_obj = getattr(item, 'stock', None)
+            stock = stock_obj.quantity if stock_obj else 0
+
+            # Aggregate purchased and sold quantities
+            purchased = PurchaseItem.objects.filter(item=item, invoice__status=PurchaseInvoice.STATUS_APPROVED).aggregate(total=Sum('qty'))['total'] or 0
+            sold = SaleItem.objects.filter(item=item, invoice__status=SaleInvoice.STATUS_APPROVED).aggregate(total=Sum('qty'))['total'] or 0
+
             result.append({
                 'item': ProductItemSerializer(item).data,
                 'purchased': purchased,
@@ -43,13 +38,11 @@ class InventoryReportAPIView(APIView):
                 'stock': stock,
             })
 
-        # Paginate result list
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(result, request)
         if page is not None:
             return paginator.get_paginated_response(page)
 
-        # If no pagination applied, return full list
         return Response(result)
 
 
