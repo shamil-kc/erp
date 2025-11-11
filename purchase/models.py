@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from products.models import ProductItem
 from customer.models import Party
 from common.models import Tax
+from inventory.models import Stock
 
 
 class PurchaseInvoice(models.Model):
@@ -119,10 +120,27 @@ class PurchaseItem(models.Model):
         return total_price * (vat_rate / 100)
 
     def save(self, *args, **kwargs):
-        self.amount_usd = (self.unit_price_usd + self.shipping_per_unit_usd) * self.qty
-        self.amount_aed = (self.unit_price_aed + self.shipping_per_unit_aed) * self.qty
+        is_new = self.pk is None
+        previous_qty = 0
+        if not is_new:
+            previous = PurchaseItem.objects.get(pk=self.pk)
+            previous_qty = previous.qty
+
         super().save(*args, **kwargs)
+
+        stock, _ = Stock.objects.get_or_create(product_item=self.item)
+        if is_new:
+            stock.quantity += self.qty
+        else:
+            stock.quantity += (self.qty - previous_qty)
+        stock.save()
+
+    def delete(self, *args, **kwargs):
+        stock = Stock.objects.filter(product_item=self.item).first()
+        if stock:
+            stock.quantity -= self.qty
+            stock.save()
+        super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.qty}x {self.item} @ {self.unit_price_usd}"
-

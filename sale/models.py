@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from products.models import ProductItem
 from customer.models import Party
+from inventory.models import Stock
 
 
 class SaleInvoice(models.Model):
@@ -102,9 +103,8 @@ class SaleItem(models.Model):
     qty = models.PositiveIntegerField()
     sale_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
-    amount_usd = models.DecimalField(max_digits=12, decimal_places=2,
-                                     default=0)
-    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # <-- add default=0
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
@@ -128,41 +128,30 @@ class SaleItem(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        # Track old quantity and purchase item for updates
-        old_qty = 0
-        old_purchase_item = None
+        is_new = self.pk is None
+        previous_qty = 0
+        if not is_new:
+            previous = SaleItem.objects.get(pk=self.pk)
+            previous_qty = previous.qty
 
-        if self.pk:  # If updating an existing SaleItem
-            try:
-                old_instance = SaleItem.objects.get(pk=self.pk)
-                old_qty = old_instance.qty
-                old_purchase_item = old_instance.purchase_item
-            except SaleItem.DoesNotExist:
-                pass
+        # Calculate amounts before saving
+        self.amount_usd = (self.sale_price_usd * self.qty) + self.shipping_usd
+        self.amount_aed = (self.sale_price_aed * self.qty) + self.shipping_aed
 
-        # Calculate amounts
-        self.amount_usd = self.qty * self.sale_price_usd
-        self.amount_aed = self.qty * self.sale_price_aed
         super().save(*args, **kwargs)
 
-        # Update sold_qty for the associated PurchaseItem
-        with db_transaction.atomic():
-            # If the purchase item has changed, adjust the old and new items
-            if old_purchase_item and old_purchase_item != self.purchase_item:
-                old_purchase_item.sold_qty -= old_qty
-                old_purchase_item.save()
-
-            if self.purchase_item:
-                qty_difference = self.qty - old_qty
-                self.purchase_item.sold_qty += qty_difference
-                self.purchase_item.save()
+        stock, _ = Stock.objects.get_or_create(product_item=self.item)
+        if is_new:
+            stock.quantity -= self.qty
+        else:
+            stock.quantity -= (self.qty - previous_qty)
+        stock.save()
 
     def delete(self, *args, **kwargs):
-        # Decrease sold_qty when a SaleItem is deleted
-        if self.purchase_item:
-            with db_transaction.atomic():
-                self.purchase_item.sold_qty -= self.qty
-                self.purchase_item.save()
+        stock = Stock.objects.filter(product_item=self.item).first()
+        if stock:
+            stock.quantity += self.qty
+            stock.save()
         super().delete(*args, **kwargs)
 
     def __str__(self):
@@ -175,4 +164,3 @@ class SaleItem(models.Model):
     @property
     def total_amount_aed(self):
         return (self.sale_price_aed * self.qty) + self.shipping_aed
-

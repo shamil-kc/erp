@@ -24,10 +24,10 @@ class InventoryReportAPIView(APIView):
 
         result = []
         for item in items:
-            stock_obj = getattr(item, 'stock', None)
+            # Use correct field name for Stock model
+            stock_obj = Stock.objects.filter(product_item=item).first()
             stock = stock_obj.quantity if stock_obj else 0
 
-            # Aggregate purchased and sold quantities
             purchased = PurchaseItem.objects.filter(item=item, invoice__status=PurchaseInvoice.STATUS_APPROVED).aggregate(total=Sum('qty'))['total'] or 0
             sold = SaleItem.objects.filter(item=item, invoice__status=SaleInvoice.STATUS_APPROVED).aggregate(total=Sum('qty'))['total'] or 0
 
