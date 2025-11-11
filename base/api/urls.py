@@ -34,6 +34,7 @@ router.register(r'commissions', CommissionViewSet)
 router.register(r'parties', PartyViewSet)
 router.register(r'employee-leaves', EmployeeLeaveViewSet)
 router.register(r'wage', WageViewSet)
+router.register(r'assets', AssetViewSet)
 
 
 urlpatterns = [

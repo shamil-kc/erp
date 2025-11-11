@@ -286,3 +286,14 @@ class RemindersAPIView(APIView):
             except Expense.DoesNotExist:
                 return Response({"error": "Expense not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response({"error": "Unsupported reminder type"}, status=status.HTTP_400_BAD_REQUEST)
+
+class AssetViewSet(viewsets.ModelViewSet):
+    queryset = Asset.objects.all()
+    serializer_class = AssetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user, modified_at=timezone.now())

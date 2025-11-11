@@ -46,3 +46,8 @@ class WageSerializer(serializers.ModelSerializer):
         model = Wage
         fields = ['id', 'amount_aed',
                   'date', 'notes',  'payment_type']
+
+class AssetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Asset
+        fields = '__all__'
