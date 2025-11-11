@@ -11,6 +11,7 @@ from report.api.views_api import *
 from common.api.views_api import *
 from banking.api.views_api import *
 from user.api.views_api import *
+from inventory.api.views_api import *
 
 router = DefaultRouter()
 router.register(r'products', ProductViewSet)
@@ -50,4 +51,5 @@ urlpatterns = [
     path('cash-account/', CashAccountAPIView.as_view(), name='cash-account'),
     path('check-approve/', CheckApproveAPIView.as_view(), name='check-approve'),
     path('reminders/', RemindersAPIView.as_view(), name='reminders'),
+    path('add-stock/', AddStockAPIView.as_view(), name='add-stock'),
 ]
