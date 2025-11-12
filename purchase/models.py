@@ -85,7 +85,8 @@ class PurchaseInvoice(models.Model):
 
 
 class PurchaseItem(models.Model):
-    invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='purchase_items')
+    invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE,
+                                related_name='purchase_items', null=True, blank=True)
     item = models.ForeignKey(ProductItem, on_delete=models.CASCADE)
     qty = models.PositiveIntegerField()
     sold_qty = models.PositiveIntegerField(default=0)
@@ -143,4 +144,4 @@ class PurchaseItem(models.Model):
         super().delete(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.qty}x {self.item} @ {self.unit_price_usd}"
+        return f"{self.qty}x {self.item} @ {self.unit_price_usd}" if self.invoice else "Uninvoiced Purchase Item"
