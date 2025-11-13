@@ -6,6 +6,8 @@ from .filters import PurchaseInvoiceFilter
 from django.db import transaction
 from rest_framework import permissions
 from base.utils import log_activity
+from purchase.models import PurchaseReturnItem
+from purchase.api.serializers import PurchaseReturnItemSerializer
 
 
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
@@ -63,3 +65,12 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
         if self.action in ['update', 'partial_update']:
             return PurchaseItemUpdateSerializer
         return PurchaseItemSerializer
+
+
+class PurchaseReturnItemViewSet(viewsets.ModelViewSet):
+    queryset = PurchaseReturnItem.objects.all().order_by('-return_date')
+    serializer_class = PurchaseReturnItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(returned_by=self.request.user)

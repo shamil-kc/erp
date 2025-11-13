@@ -184,3 +184,18 @@ class PurchaseItemUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseItem
         fields = '__all__'
+
+
+from purchase.models import PurchaseReturnItem, PurchaseItem
+
+class PurchaseReturnItemSerializer(serializers.ModelSerializer):
+    purchase_item = serializers.PrimaryKeyRelatedField(queryset=PurchaseItem.objects.all())
+
+    class Meta:
+        model = PurchaseReturnItem
+        fields = ['id', 'purchase_item', 'purchase_invoice', 'qty', 'returned_by',
+                  'return_date', 'remarks', 'created_at']
+
+    def create(self, validated_data):
+        validated_data['returned_by'] = self.context['request'].user
+        return super().create(validated_data)

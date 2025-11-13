@@ -36,6 +36,7 @@ router.register(r'employee-leaves', EmployeeLeaveViewSet)
 router.register(r'wage', WageViewSet)
 router.register(r'assets', AssetViewSet)
 router.register(r'sale-returns', SaleReturnItemViewSet, basename='sale-return')
+router.register(r'purchase-returns', PurchaseReturnItemViewSet, basename='purchase-return')
 
 
 urlpatterns = [
