@@ -7,6 +7,8 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework import permissions
 from base.utils import log_activity
+from sale.api.serializers import SaleReturnItemSerializer
+from sale.models import SaleReturnItem
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
@@ -25,7 +27,6 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             instance = serializer.save(created_by=self.request.user)
-
 
     def perform_update(self, serializer):
         def convert_decimal(obj):
@@ -67,3 +68,12 @@ class SaleItemViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
+
+
+class SaleReturnItemViewSet(viewsets.ModelViewSet):
+    queryset = SaleReturnItem.objects.all().order_by('-return_date')
+    serializer_class = SaleReturnItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(returned_by=self.request.user)

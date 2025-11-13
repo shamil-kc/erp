@@ -9,6 +9,7 @@ from sale.models import *
 from purchase.models import PurchaseItem
 from banking.models import PaymentEntry
 from common.models import ServiceFee,Commission
+from sale.models import SaleReturnItem
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
@@ -253,3 +254,16 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
 
             instance.calculate_totals()
         return instance
+
+
+class SaleReturnItemSerializer(serializers.ModelSerializer):
+    sale_item = serializers.PrimaryKeyRelatedField(queryset=SaleItem.objects.all())
+
+    class Meta:
+        model = SaleReturnItem
+        fields = ['id', 'sale_item', 'sale_invoice','qty', 'returned_by',
+                  'return_date', 'remarks', 'created_at']
+
+    def create(self, validated_data):
+        validated_data['returned_by'] = self.context['request'].user
+        return super().create(validated_data)

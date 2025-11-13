@@ -164,3 +164,34 @@ class SaleItem(models.Model):
     @property
     def total_amount_aed(self):
         return (self.sale_price_aed * self.qty) + self.shipping_aed
+
+class SaleReturnItem(models.Model):
+    sale_item = models.ForeignKey(SaleItem, on_delete=models.CASCADE, related_name='return_items')
+    sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='return_items')
+    qty = models.PositiveIntegerField()
+    returned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    return_date = models.DateTimeField(default=timezone.now)
+    remarks = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new:
+            # Update stock for the returned item
+            from inventory.models import Stock
+            stock, _ = Stock.objects.get_or_create(product_item=self.sale_item.item)
+            stock.quantity += self.qty
+            stock.save()
+
+    def delete(self, *args, **kwargs):
+        from inventory.models import Stock
+        stock = Stock.objects.filter(product_item=self.sale_item.item).first()
+        if stock:
+            stock.quantity -= self.qty
+            stock.save()
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"Return {self.qty}x {self.sale_item.item} from SaleItem {self.sale_item.id}"
