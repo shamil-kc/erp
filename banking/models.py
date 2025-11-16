@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from customer.models import Party
 
 
 class PaymentEntry(models.Model):
@@ -17,6 +18,9 @@ class PaymentEntry(models.Model):
                                     choices=PAYMENT_TYPE_CHOICES)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     charges = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True,
+                             help_text='Customer or Supplier for this payment')
 
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL,
