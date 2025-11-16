@@ -111,7 +111,8 @@ class SaleItem(models.Model):
     sale_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # <-- add default=0
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
@@ -145,10 +146,6 @@ class SaleItem(models.Model):
         if not is_new:
             previous = SaleItem.objects.get(pk=self.pk)
             previous_qty = previous.qty
-
-        # Calculate amounts before saving
-        self.amount_usd = (self.sale_price_usd * self.qty) + self.shipping_usd
-        self.amount_aed = (self.sale_price_aed * self.qty) + self.shipping_aed
 
         super().save(*args, **kwargs)
 

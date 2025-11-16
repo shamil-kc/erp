@@ -97,6 +97,7 @@ class PurchaseItem(models.Model):
     factors = models.CharField(max_length=100, blank=True, null=True)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,

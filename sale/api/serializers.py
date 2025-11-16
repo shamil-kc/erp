@@ -56,7 +56,10 @@ class SaleItemNestedSerializer(serializers.Serializer):
         choices=SaleItem.DELIVERY_STATUS_CHOICES,
         required=False,
         default=SaleItem.DELIVERY_STATUS_NOT_DELIVERED
-    )
+    ),
+    amount_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
+    amount_aed = serializers.DecimalField(max_digits=12, decimal_places=2)
+    vat_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
 class SaleInvoiceSerializer(serializers.ModelSerializer):
@@ -139,7 +142,10 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
                 sale_price_aed=item['sale_price_aed'],
                 shipping_usd=item.get('shipping_usd', 0),
                 shipping_aed=item.get('shipping_aed', 0),
-                purchase_item=item.get('purchase_item')
+                purchase_item=item.get('purchase_item'),
+                amount_usd=item.get('amount_usd'),
+                amount_aed=item.get('amount_aed'),
+                vat_amount=item.get('vat_amount')
             )
 
         # create service_fee if applicable
