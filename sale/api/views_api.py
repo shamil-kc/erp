@@ -71,12 +71,15 @@ class SaleItemViewSet(viewsets.ModelViewSet):
         serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
 
-    @action(detail=True, methods=['post'], url_path='set-delivered')
-    def delivered(self, request, pk=None):
-        sale_item = self.get_object()
-        sale_item.delivery_status = SaleItem.DELIVERY_STATUS_DELIVERED
-        sale_item.save()
-        return Response({'status': 'delivery status set to delivered'})
+    @action(detail=False, methods=['post'], url_path='set-delivered')
+    def delivered(self, request):
+        ids = request.data.get('ids', [])
+        if not isinstance(ids, list):
+            return Response({'error': 'ids must be a list'}, status=400)
+        updated = SaleItem.objects.filter(id__in=ids).update(
+            delivery_status=SaleItem.DELIVERY_STATUS_DELIVERED
+        )
+        return Response({'status': f'{updated} sale items set to delivered'})
 
 
 class SaleReturnItemViewSet(viewsets.ModelViewSet):
