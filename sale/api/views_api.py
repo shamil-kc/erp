@@ -9,6 +9,8 @@ from rest_framework import permissions
 from base.utils import log_activity
 from sale.api.serializers import SaleReturnItemSerializer
 from sale.models import SaleReturnItem
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
@@ -68,6 +70,13 @@ class SaleItemViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
+
+    @action(detail=True, methods=['post'], url_path='set-delivered')
+    def delivered(self, request, pk=None):
+        sale_item = self.get_object()
+        sale_item.delivery_status = SaleItem.DELIVERY_STATUS_DELIVERED
+        sale_item.save()
+        return Response({'status': 'delivery status set to delivered'})
 
 
 class SaleReturnItemViewSet(viewsets.ModelViewSet):

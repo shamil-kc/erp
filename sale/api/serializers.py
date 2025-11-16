@@ -15,6 +15,7 @@ from sale.models import SaleReturnItem
 class SaleItemSerializer(serializers.ModelSerializer):
     item = serializers.SerializerMethodField()
     purchase_item = serializers.SerializerMethodField()
+    delivery_status = serializers.CharField()
 
     class Meta:
         model = SaleItem
@@ -50,6 +51,11 @@ class SaleItemNestedSerializer(serializers.Serializer):
     # Unified field for both input (ID) and output (details)
     purchase_item = serializers.PrimaryKeyRelatedField(
         queryset=PurchaseItem.objects.all(), required=False, allow_null=True
+    )
+    delivery_status = serializers.ChoiceField(
+        choices=SaleItem.DELIVERY_STATUS_CHOICES,
+        required=False,
+        default=SaleItem.DELIVERY_STATUS_NOT_DELIVERED
     )
 
 

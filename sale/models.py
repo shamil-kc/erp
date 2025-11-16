@@ -98,6 +98,13 @@ class SaleInvoice(models.Model):
         return f"Invoice {self.invoice_no}"
 
 class SaleItem(models.Model):
+    DELIVERY_STATUS_DELIVERED = 'delivered'
+    DELIVERY_STATUS_NOT_DELIVERED = 'not_delivered'
+    DELIVERY_STATUS_CHOICES = [
+        (DELIVERY_STATUS_DELIVERED, 'Delivered'),
+        (DELIVERY_STATUS_NOT_DELIVERED, 'Not Delivered'),
+    ]
+
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='sale_items')
     item = models.ForeignKey(ProductItem, on_delete=models.CASCADE)
     qty = models.PositiveIntegerField()
@@ -125,6 +132,11 @@ class SaleItem(models.Model):
         blank=True,
         related_name='sale_items',
         help_text='The purchase item this sale item is sourced from'
+    )
+    delivery_status = models.CharField(
+        max_length=20,
+        choices=DELIVERY_STATUS_CHOICES,
+        default=DELIVERY_STATUS_NOT_DELIVERED
     )
 
     def save(self, *args, **kwargs):
