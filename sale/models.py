@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from products.models import ProductItem
 from customer.models import Party
 from inventory.models import Stock
+from .utils import generate_quotation_number, generate_perfoma_invoice_number
 
 
 class SaleInvoice(models.Model):
@@ -55,6 +56,8 @@ class SaleInvoice(models.Model):
         default='inside')
     has_tax = models.BooleanField(default=True)
     biller_name = models.CharField(max_length=100, blank=True, null=True)
+    quotation_number = models.CharField(max_length=50, blank=True, null=True)
+    perfoma_invoice_number = models.CharField(max_length=50, blank=True, null=True)
 
     def calculate_totals(self):
         from common.models import Tax
@@ -90,9 +93,14 @@ class SaleInvoice(models.Model):
             total_with_vat_usd=self.total_with_vat_usd, vat_amount_aed=vat_aed,
             total_with_vat_aed=self.total_with_vat_aed)
 
+
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.calculate_totals()
+        generate_quotation_number(self)
+        generate_perfoma_invoice_number(self)
+
 
     def __str__(self):
         return f"Invoice {self.invoice_no}"
