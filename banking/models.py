@@ -16,6 +16,7 @@ class PaymentEntry(models.Model):
     payment_type = models.CharField(max_length=10,
                                     choices=PAYMENT_TYPE_CHOICES)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
+    charges = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL,

@@ -9,5 +9,5 @@ class PaymentEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentEntry
         fields = ['invoice_id','invoice_type','payment_type', 'amount', 'created_by',
-                  'modified_by']
+                  'modified_by', 'charges']
         read_only_fields = ['created_by', 'modified_by', 'modified_at']
