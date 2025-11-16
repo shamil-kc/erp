@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SaleInvoice, SaleItem
+from .models import SaleInvoice, SaleItem, DeliveryNote
 from common.models import ServiceFee
 
 
@@ -47,3 +47,12 @@ class SaleItemAdmin(admin.ModelAdmin):
         'invoice__invoice_no',
         'item__grade__product_type__product__name', 'item__size'
     )
+
+@admin.register(DeliveryNote)
+class DeliveryNoteAdmin(admin.ModelAdmin):
+    """
+    Admin for DeliveryNote model.
+    Displays delivery note details and allows searching by related invoice number.
+    """
+    list_display = ('id', 'sale_invoice', 'created_at', 'created_by')
+    search_fields = ('sale_invoice__invoice_no',)

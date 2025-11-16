@@ -204,3 +204,19 @@ class SaleReturnItem(models.Model):
 
     def __str__(self):
         return f"Return {self.qty}x {self.sale_item.item} from SaleItem {self.sale_item.id}"
+
+
+class DeliveryNote(models.Model):
+    DO_id = models.CharField(max_length=50, unique=True)
+    sale_items = models.ManyToManyField(SaleItem, related_name='delivery_notes')
+    sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='delivery_notes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return f"Delivery Note for Invoice {self.sale_invoice.invoice_no}"
+
+    def save(self, *args, **kwargs):
+        generate_const = 'DO'
+        self.DO_id = generate_const + str(self.pk)
+        super().save(*args, **kwargs)

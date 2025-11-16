@@ -8,7 +8,7 @@ from django.db import transaction
 from rest_framework import permissions
 from base.utils import log_activity
 from sale.api.serializers import SaleReturnItemSerializer
-from sale.models import SaleReturnItem
+from sale.models import SaleReturnItem, DeliveryNote
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -73,13 +73,29 @@ class SaleItemViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='set-delivered')
     def delivered(self, request):
-        ids = request.data.get('ids', [])
-        if not isinstance(ids, list):
-            return Response({'error': 'ids must be a list'}, status=400)
-        updated = SaleItem.objects.filter(id__in=ids).update(
-            delivery_status=SaleItem.DELIVERY_STATUS_DELIVERED
-        )
-        return Response({'status': f'{updated} sale items set to delivered'})
+        sale_item_ids = request.data.get('sale_item_ids', [])
+        sale_invoice_id = request.data.get('sale_invoice_id')
+        if not isinstance(sale_item_ids, list) or not sale_invoice_id:
+            return Response({'error': 'sale_item_ids (list) and sale_invoice_id are required'}, status=400)
+
+        with transaction.atomic():
+            # Update delivery_status for sale items
+            updated = SaleItem.objects.filter(id__in=sale_item_ids).update(
+                delivery_status=SaleItem.DELIVERY_STATUS_DELIVERED
+            )
+            # Create DeliveryNote
+            sale_invoice = SaleInvoice.objects.get(id=sale_invoice_id)
+            delivery_note = DeliveryNote.objects.create(
+                sale_invoice=sale_invoice,
+                created_by=request.user
+            )
+            delivery_note.sale_items.set(SaleItem.objects.filter(id__in=sale_item_ids))
+            delivery_note.save()
+
+        return Response({
+            'status': f'{updated} sale items set to delivered',
+            'delivery_note_id': delivery_note.DO_id
+        })
 
 
 class SaleReturnItemViewSet(viewsets.ModelViewSet):
