@@ -44,9 +44,9 @@ class ProductGrade(models.Model):
 
 class ProductItem(models.Model):
     grade = models.ForeignKey(ProductGrade, on_delete=models.CASCADE)
-    size = models.FloatField()
+    size = models.CharField(max_length=20, null=True, blank=True)
     unit = models.CharField(max_length=20, default='PCs')
-    weight_kg_each = models.FloatField()
+    weight_kg_each = models.FloatField(null=True, blank=True)
     product_code = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)

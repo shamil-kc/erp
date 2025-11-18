@@ -47,9 +47,9 @@ class ProductItemCreateSerializer(serializers.Serializer):
     product = serializers.CharField()
     product_type = serializers.CharField()
     grade = serializers.CharField()
-    size = serializers.FloatField()
+    size = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     unit = serializers.CharField()
-    weight_kg_each = serializers.FloatField()
+    weight_kg_each = serializers.FloatField(required=False, allow_null=True)
     product_code = serializers.CharField(required=False)
 
 
