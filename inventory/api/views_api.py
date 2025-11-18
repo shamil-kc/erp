@@ -15,9 +15,10 @@ class AddStockAPIView(APIView):
         unit_price_usd = request.data.get('unit_price_usd')
         unit_price_aed = request.data.get('unit_price_aed')
         tax_id = request.data.get('tax_id')
+        tax = None
 
         # Validate required fields
-        if not all([product_item_id, qty, unit_price_usd, unit_price_aed, tax_id]):
+        if not all([product_item_id, qty, unit_price_usd, unit_price_aed]):
             return Response({'error': 'Missing required fields.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -26,7 +27,8 @@ class AddStockAPIView(APIView):
             return Response({'error': 'ProductItem not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            tax = Tax.objects.get(id=tax_id)
+            if tax_id:
+                tax = Tax.objects.get(id=tax_id)
         except Tax.DoesNotExist:
             return Response({'error': 'Tax not found.'}, status=status.HTTP_404_NOT_FOUND)
 

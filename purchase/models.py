@@ -106,7 +106,7 @@ class PurchaseItem(models.Model):
                                     related_name='+')
 
     tax = models.ForeignKey(Tax, on_delete=models.PROTECT,
-                            related_name="purchase_items")
+                            related_name="purchase_items" , null=True, blank=True)
 
     @property
     def vat_amount_usd(self):
