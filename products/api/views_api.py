@@ -152,6 +152,13 @@ class ProductItemViewSet(viewsets.ModelViewSet):
             return ProductItemUpdateSerializer
         return ProductItemSerializer
 
+    def list(self, request, *args, **kwargs):
+        search_query = request.query_params.get('search')
+        if search_query:
+            queryset = self.filter_queryset(self.get_queryset())
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        return super().list(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'], url_path='purchase-info')
     def full_info(self, request):
