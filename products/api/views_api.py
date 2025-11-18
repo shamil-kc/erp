@@ -11,6 +11,7 @@ from sale.models import SaleInvoice
 from purchase.models import PurchaseInvoice, PurchaseItem
 from common.models import ServiceFee, Tax, Expense
 from employee.models import SalaryEntry
+from .filters import ProductItemFilter
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
@@ -130,6 +131,7 @@ class ProductGradeViewSet(viewsets.ModelViewSet):
 class ProductItemViewSet(viewsets.ModelViewSet):
     queryset = ProductItem.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    filterset_class = ProductItemFilter
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
