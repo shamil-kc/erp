@@ -11,6 +11,7 @@ from sale.api.serializers import SaleReturnItemSerializer
 from sale.models import SaleReturnItem, DeliveryNote
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from inventory.models import Stock
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
@@ -70,6 +71,50 @@ class SaleItemViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
+
+    @action(detail=False, methods=['post'], url_path='stock-info')
+    def get_stock_info(self, request):
+        sale_item_ids = request.data.get('sale_item_ids', [])
+
+        if not isinstance(sale_item_ids, list) or not sale_item_ids:
+            return Response({'error': 'sale_item_ids (list) is required'}, status=400)
+
+        # Get sale items with their product items
+        sale_items = SaleItem.objects.filter(id__in=sale_item_ids).select_related('item', 'item__stock')
+
+        if not sale_items.exists():
+            return Response({'error': 'No sale items found for the provided IDs'}, status=404)
+
+        stock_info = []
+        for sale_item in sale_items:
+            try:
+                stock = Stock.objects.get(product_item=sale_item.item)
+                stock_data = {
+                    'sale_item_id': sale_item.id,
+                    'product_item': {
+                        'product_id': sale_item.item.id,
+                        'name': str(sale_item.item),
+                    },
+                    'current_stock': stock.quantity,
+                    'sale_item_qty': sale_item.qty,
+                }
+            except Stock.DoesNotExist:
+                stock_data = {
+                    'sale_item_id': sale_item.id,
+                    'product_item': {
+                        'product_id': sale_item.item.id,
+                        'name': str(sale_item.item),
+                    },
+                    'current_stock': 0,
+                    'sale_item_qty': sale_item.qty,
+                }
+
+            stock_info.append(stock_data)
+
+        return Response({
+            'stock_info': stock_info,
+            'total_items': len(stock_info)
+        })
 
     @action(detail=False, methods=['post'], url_path='set-delivered')
     def delivered(self, request):
