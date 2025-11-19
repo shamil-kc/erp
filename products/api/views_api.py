@@ -129,7 +129,7 @@ class ProductGradeViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
 class ProductItemViewSet(viewsets.ModelViewSet):
-    queryset = ProductItem.objects.all()
+    queryset = ProductItem.objects.all().order_by('-created_at')
     permission_classes = [permissions.IsAuthenticated]
     filterset_class = ProductItemFilter
 

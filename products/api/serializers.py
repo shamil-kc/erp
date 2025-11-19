@@ -28,30 +28,57 @@ class ProductItemSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_product(self, obj):
-        product = obj.grade.product_type.product
-        return ProductSerializer(product).data if product else None
+        # First try to get from direct product field
+        if obj.product:
+            return ProductSerializer(obj.product).data
+        # Fallback to grade hierarchy for backward compatibility
+        elif obj.grade and obj.grade.product_type and obj.grade.product_type.product:
+            return ProductSerializer(obj.grade.product_type.product).data
+        return None
 
     def get_product_type(self, obj):
-        product_type = obj.grade.product_type
-        return ProductTypeSerializer(product_type).data if product_type else None
+        # First try direct product_type field
+        if obj.product_type:
+            return ProductTypeSerializer(obj.product_type).data
+        # Fallback to grade hierarchy for backward compatibility
+        elif obj.grade and obj.grade.product_type:
+            return ProductTypeSerializer(obj.grade.product_type).data
+        return None
 
     def get_product_full_name(self, obj):
-        tree = obj.grade
-        product_name = tree.product_type.product.name if tree and tree.product_type and tree.product_type.product else ''
-        product_type_name = tree.product_type.type_name if tree and tree.product_type else ''
-        grade_name = tree.grade if tree else ''
-        size = obj.size
-        return f"{product_name} - {product_type_name} - {grade_name} - Size {size}"
+        # Build name based on available data
+        product_name = ''
+        product_type_name = ''
+        grade_name = ''
+
+        # Get product name
+        if obj.product:
+            product_name = obj.product.name
+        elif obj.grade and obj.grade.product_type and obj.grade.product_type.product:
+            product_name = obj.grade.product_type.product.name
+
+        # Get product type name
+        if obj.product_type:
+            product_type_name = obj.product_type.type_name
+        elif obj.grade and obj.grade.product_type:
+            product_type_name = obj.grade.product_type.type_name
+
+        # Get grade name
+        if obj.grade:
+            grade_name = obj.grade.grade
+
+        # Build full name
+        parts = [product_name, product_type_name, grade_name, f"Size {obj.size}"]
+        return " - ".join([part for part in parts if part])
 
 class ProductItemCreateSerializer(serializers.Serializer):
     product = serializers.CharField()
-    product_type = serializers.CharField()
-    grade = serializers.CharField()
+    product_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    grade = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     size = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     unit = serializers.CharField()
     weight_kg_each = serializers.FloatField(required=False, allow_null=True)
     product_code = serializers.CharField(required=False)
-
 
 class ProductItemUpdateSerializer(serializers.ModelSerializer):
     product = serializers.CharField(write_only=True, required=False)
@@ -62,40 +89,44 @@ class ProductItemUpdateSerializer(serializers.ModelSerializer):
         model = ProductItem
         fields = [
             'id', 'product', 'product_type', 'grade',
-            'size', 'unit', 'weight_kg_each', 'grade', 'product_code'
+            'size', 'unit', 'weight_kg_each', 'product_code'
         ]
 
     def update(self, instance, validated_data):
         print("working")
-        # Related model edits
-        grade_obj = instance.grade  # ProductGrade object
-        prodtype_obj = grade_obj.product_type  # ProductType object
-        prod_obj = prodtype_obj.product  # Product object
 
-        # Update Product name if provided
+        # Handle product update
         product_name = validated_data.pop('product', None)
         if product_name:
             product_name = product_name.strip()
-            if prod_obj.name != product_name:
-                # Check if name already exists; you could also enforce unique here
-                prod_obj.name = product_name
-                prod_obj.save()
+            product_obj, _ = Product.objects.get_or_create(name=product_name)
+            instance.product = product_obj
 
-        # Update ProductType name if provided
+        # Handle product_type update
         product_type_name = validated_data.pop('product_type', None)
         if product_type_name:
             product_type_name = product_type_name.strip()
-            if prodtype_obj.type_name != product_type_name:
-                prodtype_obj.type_name = product_type_name
-                prodtype_obj.save()
+            if product_type_name:
+                product_type_obj, _ = ProductType.objects.get_or_create(
+                    product=instance.product,
+                    type_name=product_type_name
+                )
+                instance.product_type = product_type_obj
+            else:
+                instance.product_type = None
 
-        # Update Grade if provided
+        # Handle grade update
         grade_name = validated_data.pop('grade', None)
         if grade_name:
             grade_name = grade_name.strip()
-            if grade_obj.grade != grade_name:
-                grade_obj.grade = grade_name
-                grade_obj.save()
+            if grade_name and instance.product_type:
+                grade_obj, _ = ProductGrade.objects.get_or_create(
+                    product_type=instance.product_type,
+                    grade=grade_name
+                )
+                instance.grade = grade_obj
+            else:
+                instance.grade = None
 
         # Update ProductItem fields
         for attr, value in validated_data.items():
@@ -104,7 +135,6 @@ class ProductItemUpdateSerializer(serializers.ModelSerializer):
 
         return instance
 
-
 class ProductItemBulkCreateSerializer(serializers.Serializer):
     items = ProductItemCreateSerializer(many=True)
 
@@ -112,15 +142,35 @@ class ProductItemBulkCreateSerializer(serializers.Serializer):
         items_data = validated_data['items']
         created_items = []
         for item_data in items_data:
+            # Create/get product (required)
             prod_obj, _ = Product.objects.get_or_create(name=item_data['product'].strip())
-            prodtype_obj, _ = ProductType.objects.get_or_create(product=prod_obj, type_name=item_data['product_type'].strip())
-            grade_obj, _ = ProductGrade.objects.get_or_create(product_type=prodtype_obj, grade=item_data['grade'].strip())
+
+            # Create/get product type (optional)
+            prodtype_obj = None
+            if item_data.get('product_type') and item_data['product_type'].strip():
+                prodtype_obj, _ = ProductType.objects.get_or_create(
+                    product=prod_obj,
+                    type_name=item_data['product_type'].strip()
+                )
+
+            # Create/get grade (optional)
+            grade_obj = None
+            if item_data.get('grade') and item_data['grade'].strip() and prodtype_obj:
+                grade_obj, _ = ProductGrade.objects.get_or_create(
+                    product_type=prodtype_obj,
+                    grade=item_data['grade'].strip()
+                )
+
             product_item_obj, created = ProductItem.objects.get_or_create(
+                product=prod_obj,
+                product_type=prodtype_obj,
                 grade=grade_obj,
-                size=item_data['size'],
-                unit=item_data['unit'],
-                weight_kg_each=item_data['weight_kg_each'],
-                product_code=item_data.get('product_code', '').strip() or None
+                size=item_data.get('size'),
+                defaults={
+                    'unit': item_data['unit'],
+                    'weight_kg_each': item_data.get('weight_kg_each'),
+                    'product_code': item_data.get('product_code', '').strip() or None
+                }
             )
             created_items.append(product_item_obj)
         return created_items

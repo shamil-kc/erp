@@ -43,7 +43,10 @@ class ProductGrade(models.Model):
         return f"{self.product_type} - {self.grade}"
 
 class ProductItem(models.Model):
-    grade = models.ForeignKey(ProductGrade, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product_type = models.ForeignKey(ProductType, on_delete=models.SET_NULL,
+                                     null=True, blank=True)
+    grade = models.ForeignKey(ProductGrade, on_delete=models.SET_NULL, null=True, blank=True)
     size = models.CharField(max_length=20, null=True, blank=True)
     unit = models.CharField(max_length=20, default='PCs')
     weight_kg_each = models.FloatField(null=True, blank=True)
@@ -56,4 +59,9 @@ class ProductItem(models.Model):
                                     related_name='+')
 
     def __str__(self):
-        return f"{self.grade} - Size {self.size}"
+        if self.grade:
+            return f"{self.grade} - Size {self.size}"
+        elif self.product_type:
+            return f"{self.product_type} - Size {self.size}"
+        else:
+            return f"{self.product} - Size {self.size}"
