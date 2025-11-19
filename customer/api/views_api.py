@@ -13,7 +13,7 @@ from rest_framework.response import Response
 
 
 class PartyViewSet(viewsets.ModelViewSet):
-    queryset = Party.objects.all()
+    queryset = Party.objects.all().order_by('-created_at')
     serializer_class = PartySerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]

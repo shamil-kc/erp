@@ -10,7 +10,7 @@ from django.utils import timezone
 
 
 class SalaryEntryViewSet(viewsets.ModelViewSet):
-    queryset = SalaryEntry.objects.all()
+    queryset = SalaryEntry.objects.all().order_by('-created_at')
     serializer_class = SalaryEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -46,7 +46,7 @@ class AccountViewSet(viewsets.ModelViewSet):
 
 
 class DesignationViewSet(viewsets.ModelViewSet):
-    queryset = Designation.objects.all()
+    queryset = Designation.objects.all().order_by('-created_at')
     serializer_class = DesignationSerializer
     permission_classes = [permissions.IsAuthenticated]
 

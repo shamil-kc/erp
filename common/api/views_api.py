@@ -18,7 +18,7 @@ from employee.models import SalaryEntry
 
 
 class TaxViewSet(viewsets.ModelViewSet):
-    queryset = Tax.objects.all()
+    queryset = Tax.objects.all().order_by('-created_at')
     serializer_class = TaxSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -38,7 +38,7 @@ class TaxViewSet(viewsets.ModelViewSet):
 
 
 class ExpenseTypeViewSet(viewsets.ModelViewSet):
-    queryset = ExpenseType.objects.all()
+    queryset = ExpenseType.objects.all().order_by('-created_at')
     serializer_class = ExpenseTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -51,7 +51,7 @@ class ExpenseTypeViewSet(viewsets.ModelViewSet):
 
 
 class ExpenseViewSet(viewsets.ModelViewSet):
-    queryset = Expense.objects.all()
+    queryset = Expense.objects.all().order_by('-created_at')
     serializer_class = ExpenseSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -177,7 +177,7 @@ class TaxSummaryAPIView(APIView):
 
 
 class ServiceFeeViewSet(viewsets.ModelViewSet):
-    queryset = ServiceFee.objects.all()
+    queryset = ServiceFee.objects.all().order_by('-created_at')
     serializer_class = ServiceFeeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -218,7 +218,7 @@ class ServiceFeeViewSet(viewsets.ModelViewSet):
 
 
 class CommissionViewSet(viewsets.ModelViewSet):
-    queryset = Commission.objects.all()
+    queryset = Commission.objects.all().order_by('-created_at')
     serializer_class = CommissionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -231,7 +231,7 @@ class CommissionViewSet(viewsets.ModelViewSet):
 
 
 class WageViewSet(viewsets.ModelViewSet):
-    queryset = Wage.objects.all()
+    queryset = Wage.objects.all().order_by('-created_at')
     serializer_class = WageSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -288,7 +288,7 @@ class RemindersAPIView(APIView):
         return Response({"error": "Unsupported reminder type"}, status=status.HTTP_400_BAD_REQUEST)
 
 class AssetViewSet(viewsets.ModelViewSet):
-    queryset = Asset.objects.all()
+    queryset = Asset.objects.all().order_by('-created_at')
     serializer_class = AssetSerializer
     permission_classes = [permissions.IsAuthenticated]
 

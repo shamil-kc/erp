@@ -13,7 +13,7 @@ from django.utils import timezone
 
 
 class PaymentEntryViewSet(viewsets.ModelViewSet):
-    queryset = PaymentEntry.objects.all()
+    queryset = PaymentEntry.objects.all().order_by('-created_at')
     serializer_class = PaymentEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]

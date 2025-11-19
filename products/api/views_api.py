@@ -14,7 +14,7 @@ from employee.models import SalaryEntry
 from .filters import ProductItemFilter
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
+    queryset = Product.objects.all().order_by('-created_at')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -44,7 +44,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
 class ProductTypeViewSet(viewsets.ModelViewSet):
-    queryset = ProductType.objects.all()
+    queryset = ProductType.objects.all().order_by('-created_at')
     serializer_class = ProductTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -84,7 +84,7 @@ class ProductTypeViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
 class ProductGradeViewSet(viewsets.ModelViewSet):
-    queryset = ProductGrade.objects.all()
+    queryset = ProductGrade.objects.all().order_by('-created_at')
     serializer_class = ProductGradeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
