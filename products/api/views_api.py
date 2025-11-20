@@ -175,8 +175,7 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                 stock = getattr(item, 'stock', None)
                 if stock and stock.quantity > 0:
                     purchase_items = PurchaseItem.objects.filter(
-                        item=item,
-                        invoice__status=PurchaseInvoice.STATUS_APPROVED
+                        item=item
                     )
                     purchases = []
                     for p_item in purchase_items:
@@ -201,7 +200,7 @@ class ProductItemViewSet(viewsets.ModelViewSet):
                                 'supplier': p_item.invoice.party.id,
                                 'purchase_date': p_item.invoice.purchase_date,
                                 'status': p_item.invoice.status,
-                            }
+                            } if p_item.invoice else None
                         })
                     # Only return purchase item, invoice details, and stock
                     return Response({
