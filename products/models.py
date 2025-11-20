@@ -62,7 +62,7 @@ class ProductItem(models.Model):
 
     def generate_product_code(self):
         """Generate a unique product code with format 'AJM-<number>'"""
-        prefix = "AJM"
+        prefix = "AJM-P"
 
         # Get all existing AJM codes and extract the highest number
         existing_codes = ProductItem.objects.filter(
