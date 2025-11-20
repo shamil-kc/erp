@@ -20,7 +20,7 @@ class InventoryReportAPIView(APIView):
     pagination_class = CustomPagination
 
     def get(self, request):
-        items = ProductItem.objects.all()
+        items = ProductItem.objects.all().order_by('-stock__last_updated')
 
         result = []
         for item in items:
