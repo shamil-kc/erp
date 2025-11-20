@@ -36,6 +36,7 @@ class InventoryReportAPIView(APIView):
                 'purchased': purchased,
                 'sold': sold,
                 'stock': stock,
+                'stock_id': stock_obj.id if stock_obj else None
             })
 
         paginator = self.pagination_class()

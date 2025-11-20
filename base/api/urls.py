@@ -55,4 +55,5 @@ urlpatterns = [
     path('check-approve/', CheckApproveAPIView.as_view(), name='check-approve'),
     path('reminders/', RemindersAPIView.as_view(), name='reminders'),
     path('add-stock/', AddStockAPIView.as_view(), name='add-stock'),
+    path('edit-stock/', EditStockAPIView.as_view(), name='edit-stock'),
 ]

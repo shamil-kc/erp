@@ -4,6 +4,7 @@ from rest_framework import status, permissions
 from products.models import ProductItem
 from purchase.models import PurchaseInvoice, PurchaseItem
 from common.models import Tax
+from inventory.models import Stock
 
 class AddStockAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -50,3 +51,50 @@ class AddStockAPIView(APIView):
             'qty': purchase_item.qty,
             'stock_quantity': purchase_item.item.stock.quantity if hasattr(purchase_item.item, 'stock') else None
         }, status=status.HTTP_201_CREATED)
+
+class EditStockAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        product_item_id = request.data.get('product_item_id')
+        new_quantity = request.data.get('qty')
+
+        # Validate required fields
+        if not all([product_item_id, new_quantity is not None]):
+            return Response({'error': 'Missing required fields: product_item_id and quantity.'},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            product_item = ProductItem.objects.get(id=product_item_id)
+        except ProductItem.DoesNotExist:
+            return Response({'error': 'ProductItem not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            new_quantity = int(new_quantity)
+            if new_quantity < 0:
+                return Response({'error': 'Quantity cannot be negative.'},
+                              status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({'error': 'Invalid quantity format.'},
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        # Get or create stock record
+        stock, created = Stock.objects.get_or_create(
+            product_item=product_item,
+            defaults={'quantity': new_quantity}
+        )
+
+        if not created:
+            old_quantity = stock.quantity
+            stock.quantity = new_quantity
+            stock.save()
+        else:
+            old_quantity = 0
+
+        return Response({
+            'product_item_id': product_item.id,
+            'product_name': str(product_item),
+            'old_quantity': old_quantity,
+            'new_quantity': stock.quantity,
+            'last_updated': stock.last_updated
+        }, status=status.HTTP_200_OK)
