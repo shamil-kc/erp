@@ -55,6 +55,8 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                                             required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
+    custom_duty_usd_enter = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    custom_duty_aed_enter = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
     currency = serializers.CharField(required=False, allow_blank=True)
     currency_rate = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
@@ -78,7 +80,8 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
         model = PurchaseInvoice
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax',
-                  'has_custom_duty', 'currency', 'currency_rate', 'status']
+                  'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
+                  'currency', 'currency_rate', 'status']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
@@ -118,6 +121,8 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                                             required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2,
                                             required=False, default=0)
+    custom_duty_usd_enter = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    custom_duty_aed_enter = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     currency = serializers.CharField(required=False, allow_blank=True)
     currency_rate = serializers.DecimalField(max_digits=12, decimal_places=2,
                                              required=False)
@@ -127,7 +132,8 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
         model = PurchaseInvoice
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'has_tax', 'status',
-                  'has_custom_duty', 'currency', 'currency_rate', 'status']
+                  'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
+                  'currency', 'currency_rate', 'status']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)

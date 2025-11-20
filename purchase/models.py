@@ -42,6 +42,11 @@ class PurchaseInvoice(models.Model):
     custom_duty_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     custom_duty_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
+    custom_duty_usd_enter = models.DecimalField(max_digits=12, decimal_places=2,
+                                          default=0)
+    custom_duty_aed_enter  = models.DecimalField(max_digits=12, decimal_places=2,
+                                          default=0)
+
 
     discount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     discount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
