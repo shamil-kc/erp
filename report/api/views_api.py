@@ -20,7 +20,24 @@ class InventoryReportAPIView(APIView):
     pagination_class = CustomPagination
 
     def get(self, request):
-        items = ProductItem.objects.all().order_by('-stock__last_updated')
+        # Get search query parameter
+        search = request.query_params.get('search', '').strip()
+
+        # Start with all items
+        items = ProductItem.objects.all()
+
+        # Apply search filters if search query is provided
+        if search:
+            search_filter = Q()
+            search_filter |= Q(product__name__icontains=search)
+            search_filter |= Q(product_type__type_name__icontains=search)
+            search_filter |= Q(grade__grade__icontains=search)
+            search_filter |= Q(size__icontains=search)
+            search_filter |= Q(product_code__icontains=search)
+
+            items = items.filter(search_filter)
+
+        items = items.order_by('-stock__last_updated')
 
         result = []
         for item in items:
@@ -39,10 +56,12 @@ class InventoryReportAPIView(APIView):
                 'stock_id': stock_obj.id if stock_obj else None
             })
 
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(result, request)
-        if page is not None:
-            return paginator.get_paginated_response(page)
+        # Apply pagination only if no search query
+        if not search:
+            paginator = self.pagination_class()
+            page = paginator.paginate_queryset(result, request)
+            if page is not None:
+                return paginator.get_paginated_response(page)
 
         return Response(result)
 

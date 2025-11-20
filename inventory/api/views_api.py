@@ -98,3 +98,4 @@ class EditStockAPIView(APIView):
             'new_quantity': stock.quantity,
             'last_updated': stock.last_updated
         }, status=status.HTTP_200_OK)
+
