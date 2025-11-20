@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Max
+import re
 
 
 class Product(models.Model):
@@ -59,28 +61,25 @@ class ProductItem(models.Model):
                                     related_name='+')
 
     def generate_product_code(self):
-        """Generate a unique product code with format '<product>-<number>'"""
-        # Get product name prefix
-        product_prefix = self.product.name if self.product else "PROD"
+        """Generate a unique product code with format 'AJM-<number>'"""
+        prefix = "AJM"
 
-        # Find the highest existing number for this product
+        # Get all existing AJM codes and extract the highest number
         existing_codes = ProductItem.objects.filter(
-            product_code__startswith=f"{product_prefix}-",
-            product=self.product
+            product_code__startswith=f"{prefix}-"
         ).exclude(pk=self.pk).values_list('product_code', flat=True)
 
         max_number = 0
         for code in existing_codes:
             try:
-                # Extract number after the last dash
-                number_part = code.split('-')[-1]
+                # Extract number after AJM-
+                number_part = code.replace(f"{prefix}-", "")
                 if number_part.isdigit():
                     max_number = max(max_number, int(number_part))
-            except (ValueError, IndexError):
+            except (ValueError, AttributeError):
                 continue
 
-        next_number = max_number + 1
-        return f"{product_prefix}-{next_number}"
+        return f"{prefix}-{max_number + 1}"
 
     def save(self, *args, **kwargs):
         if not self.product_code:
