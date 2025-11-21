@@ -62,7 +62,14 @@ class ProductItemAdmin(admin.ModelAdmin):
         """
         Returns the type name of the related product type.
         """
-        return obj.grade.product_type.type_name
+        try:
+            if obj.grade and obj.grade.product_type:
+                return obj.grade.product_type.type_name
+            else:
+                return None
+        except:
+            return None
+
     get_product_type.short_description = 'Product Type'
 
     def get_product(self, obj):
