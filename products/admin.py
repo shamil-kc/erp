@@ -76,6 +76,6 @@ class ProductItemAdmin(admin.ModelAdmin):
         """
         Returns the name of the related product.
         """
-        return obj.grade.product_type.product.name
+        return obj.product.name if obj.product else None
     get_product.short_description = 'Product'
 
