@@ -113,6 +113,11 @@ class PurchaseItem(models.Model):
     tax = models.ForeignKey(Tax, on_delete=models.PROTECT,
                             related_name="purchase_items" , null=True, blank=True)
 
+    custom_duty_usd_enter = models.DecimalField(max_digits=12,
+                                                decimal_places=2, default=0)
+    custom_duty_aed_enter = models.DecimalField(max_digits=12,
+                                                decimal_places=2, default=0)
+
     @property
     def vat_amount_usd(self):
         # Use the related Tax instance to access the VAT percent
