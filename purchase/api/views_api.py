@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from django.forms.models import model_to_dict
 from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import PurchaseInvoiceFilter
+from .filters import PurchaseInvoiceFilter, PurchaseItemFilter
 from django.db import transaction
 from rest_framework import permissions
 from base.utils import log_activity
@@ -46,6 +46,8 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
 class PurchaseItemViewSet(viewsets.ModelViewSet):
     queryset = PurchaseItem.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = PurchaseItemFilter
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)

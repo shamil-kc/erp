@@ -134,18 +134,29 @@ class PurchaseItem(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         previous_qty = 0
+
         if not is_new:
             previous = PurchaseItem.objects.get(pk=self.pk)
             previous_qty = previous.qty
 
+        # Calculate amounts before saving
+        self.amount_usd = (self.unit_price_usd + self.shipping_per_unit_usd) * self.qty
+        self.amount_aed = (self.unit_price_aed + self.shipping_per_unit_aed) * self.qty
+
         super().save(*args, **kwargs)
 
+        # Update stock based on quantity changes
         stock, _ = Stock.objects.get_or_create(product_item=self.item)
         if is_new:
             stock.quantity += self.qty
         else:
-            stock.quantity += (self.qty - previous_qty)
+            qty_difference = self.qty - previous_qty
+            stock.quantity += qty_difference
         stock.save()
+
+        # Recalculate invoice totals if this item belongs to an invoice
+        if self.invoice:
+            self.invoice.calculate_totals()
 
     def delete(self, *args, **kwargs):
         stock = Stock.objects.filter(product_item=self.item).first()
