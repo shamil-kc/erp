@@ -241,7 +241,7 @@ class SaleReturnItem(models.Model):
 
 
 class DeliveryNote(models.Model):
-    DO_id = models.CharField(max_length=50, unique=True)
+    DO_id = models.CharField(max_length=50, unique=True, blank=True)
     sale_items = models.ManyToManyField(SaleItem, related_name='delivery_notes')
     sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='delivery_notes')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -251,6 +251,9 @@ class DeliveryNote(models.Model):
         return f"Delivery Note for Invoice {self.sale_invoice.invoice_no}"
 
     def save(self, *args, **kwargs):
-        generate_const = 'DO'
-        self.DO_id = generate_const + str(self.pk)
-        super().save(*args, **kwargs)
+        if not self.DO_id:
+            super().save(*args, **kwargs)  # Save first to get pk
+            self.DO_id = f'DO{self.pk}'
+            super().save(update_fields=['DO_id'])
+        else:
+            super().save(*args, **kwargs)

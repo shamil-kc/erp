@@ -279,3 +279,13 @@ class SaleReturnItemSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['returned_by'] = self.context['request'].user
         return super().create(validated_data)
+
+
+class DeliveryNoteSerializer(serializers.ModelSerializer):
+    sale_items = SaleItemSerializer(many=True, read_only=True)
+    sale_invoice = SaleInvoiceSerializer(read_only=True)
+    created_by = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = DeliveryNote
+        fields = ['id', 'DO_id', 'sale_items', 'sale_invoice', 'created_at', 'created_by']

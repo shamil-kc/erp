@@ -7,11 +7,12 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework import permissions
 from base.utils import log_activity
-from sale.api.serializers import SaleReturnItemSerializer
-from sale.models import SaleReturnItem, DeliveryNote
+from sale.api.serializers import SaleReturnItemSerializer, DeliveryNoteSerializer
+from sale.models import SaleReturnItem, DeliveryNote, SaleInvoice
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from inventory.models import Stock
+from django.utils import timezone
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
@@ -150,3 +151,38 @@ class SaleReturnItemViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(returned_by=self.request.user)
+
+
+class DeliveryNoteViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = DeliveryNote.objects.all().order_by('-created_at')
+    serializer_class = DeliveryNoteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=False, methods=['get'])
+    def by_invoice_query(self, request):
+        """
+        Get all delivery notes for a specific sale invoice.
+        Usage: /api/delivery-notes/by-invoice-query/?invoice_id={invoice_id}
+        """
+        invoice_id = request.query_params.get('invoice_id')
+
+        if not invoice_id:
+            return Response({'error': 'invoice_id query parameter is required'}, status=400)
+
+        try:
+            sale_invoice = SaleInvoice.objects.get(id=invoice_id)
+        except SaleInvoice.DoesNotExist:
+            return Response({'error': 'Sale invoice not found'}, status=404)
+
+        delivery_notes = DeliveryNote.objects.filter(sale_invoice=sale_invoice).order_by('-created_at')
+        serializer = self.get_serializer(delivery_notes, many=True)
+
+        return Response({
+            'delivery_notes': serializer.data,
+            'invoice': {
+                'id': sale_invoice.id,
+                'invoice_no': sale_invoice.invoice_no,
+                'party': sale_invoice.party.name if sale_invoice.party else None
+            },
+            'total_count': delivery_notes.count()
+        })
