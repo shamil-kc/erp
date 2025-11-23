@@ -119,6 +119,11 @@ class PurchaseItem(models.Model):
                                                 decimal_places=2, default=0)
 
     @property
+    def remaining_qty(self):
+        """Calculate remaining quantity available for sale"""
+        return max(0, self.qty - self.sold_qty)
+
+    @property
     def vat_amount_usd(self):
         # Use the related Tax instance to access the VAT percent
         vat_rate = self.tax.vat_percent if self.tax is not None else 0

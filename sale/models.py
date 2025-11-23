@@ -164,11 +164,26 @@ class SaleItem(models.Model):
             stock.quantity -= (self.qty - previous_qty)
         stock.save()
 
+        # Update sold_qty in related PurchaseItem
+        if self.purchase_item:
+            if is_new:
+                self.purchase_item.sold_qty += self.qty
+            else:
+                qty_difference = self.qty - previous_qty
+                self.purchase_item.sold_qty += qty_difference
+            self.purchase_item.save()
+
     def delete(self, *args, **kwargs):
         stock = Stock.objects.filter(product_item=self.item).first()
         if stock:
             stock.quantity += self.qty
             stock.save()
+
+        # Decrease sold_qty in related PurchaseItem
+        if self.purchase_item:
+            self.purchase_item.sold_qty -= self.qty
+            self.purchase_item.save()
+
         super().delete(*args, **kwargs)
 
     def __str__(self):
@@ -202,12 +217,23 @@ class SaleReturnItem(models.Model):
             stock.quantity += self.qty
             stock.save()
 
+            # Decrease sold_qty in related PurchaseItem when items are returned
+            if self.sale_item.purchase_item:
+                self.sale_item.purchase_item.sold_qty -= self.qty
+                self.sale_item.purchase_item.save()
+
     def delete(self, *args, **kwargs):
         from inventory.models import Stock
         stock = Stock.objects.filter(product_item=self.sale_item.item).first()
         if stock:
             stock.quantity -= self.qty
             stock.save()
+
+        # Increase sold_qty in related PurchaseItem when return record is deleted
+        if self.sale_item.purchase_item:
+            self.sale_item.purchase_item.sold_qty += self.qty
+            self.sale_item.purchase_item.save()
+
         super().delete(*args, **kwargs)
 
     def __str__(self):
