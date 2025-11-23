@@ -10,6 +10,7 @@ from inventory.models import Stock
 
 class PurchaseItemSerializer(serializers.ModelSerializer):
     item = serializers.SerializerMethodField()
+    invoice_id = serializers.SerializerMethodField()
     class Meta:
         model = PurchaseItem
         fields = '__all__'
@@ -19,6 +20,11 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
             data = {'product_id': obj.item.id,
                     'product_full_name': ProductItemSerializer().get_product_full_name(obj.item)}
             return data
+        return None
+
+    def get_invoice_id(self, obj):
+        if obj.invoice:
+            return obj.invoice.id
         return None
 
 
