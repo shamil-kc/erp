@@ -50,6 +50,8 @@ class PurchaseItemNestedSerializer(serializers.Serializer):
     amount_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
     amount_aed = serializers.DecimalField(max_digits=12, decimal_places=2)
     vat_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    custom_duty_usd_enter = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    custom_duty_aed_enter = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
 
 
 class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
@@ -109,7 +111,9 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                         tax_id=item.get('tax'),
                         amount_usd=item.get('amount_usd'),
                         amount_aed=item.get('amount_aed'),
-                        vat_amount=item.get('vat_amount')
+                        vat_amount=item.get('vat_amount'),
+                        custom_duty_usd_enter=item.get('custom_duty_usd_enter', 0),
+                        custom_duty_aed_enter=item.get('custom_duty_aed_enter', 0)
                     )
                 invoice.calculate_totals()
             except Exception as e:
@@ -191,7 +195,10 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             shipping_per_unit_usd=item_data.get('shipping_per_unit_usd', 0),
                             shipping_per_unit_aed=item_data.get('shipping_per_unit_aed', 0),
                             factors=item_data.get('factors', ''),
-                            tax_id=item_data.get('tax'))
+                            tax_id=item_data.get('tax'),
+                            custom_duty_usd_enter=item_data.get('custom_duty_usd_enter', 0),
+                            custom_duty_aed_enter=item_data.get('custom_duty_aed_enter', 0)
+                        )
 
             instance.calculate_totals()
 

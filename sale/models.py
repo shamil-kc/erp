@@ -58,6 +58,7 @@ class SaleInvoice(models.Model):
     biller_name = models.CharField(max_length=100, blank=True, null=True)
     quotation_number = models.CharField(max_length=50, blank=True, null=True)
     perfoma_invoice_number = models.CharField(max_length=50, blank=True, null=True)
+    tax_invoice_number = models.CharField(max_length=50, blank=True, null=True)
 
     def calculate_totals(self):
         from common.models import Tax
