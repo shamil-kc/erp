@@ -252,8 +252,25 @@ class DeliveryNote(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.DO_id:
-            super().save(*args, **kwargs)  # Save first to get pk
-            self.DO_id = f'DO{self.pk}'
-            super().save(update_fields=['DO_id'])
-        else:
-            super().save(*args, **kwargs)
+            prefix = 'DO-'
+            # Get the last DO_id to determine the next number
+            last_delivery = DeliveryNote.objects.filter(
+                DO_id__startswith=prefix
+            ).order_by('-DO_id').first()
+
+            if last_delivery and last_delivery.DO_id:
+                try:
+                    # Extract number from last DO_id (e.g., "DO15" -> 15)
+                    last_number = int(last_delivery.DO_id[len(prefix):])  # Remove
+                    # "DO" prefix
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    # If parsing fails, start from 1
+                    next_number = 200
+            else:
+                # No previous delivery notes, start from 1
+                next_number = 200
+
+            self.DO_id = f'{prefix}{next_number}'
+
+        super().save(*args, **kwargs)
