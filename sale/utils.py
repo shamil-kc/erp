@@ -37,9 +37,9 @@ def generate_perfoma_invoice_number(self):
             try:
                 last_num = int(last.perfoma_invoice_number.replace(prefix, ""))
             except ValueError:
-                last_num = 2001
+                last_num = 2000
         else:
-            last_num = 2001
+            last_num = 2000
 
         new_num = last_num + 1
         self.perfoma_invoice_number = f"{prefix}{new_num}"
