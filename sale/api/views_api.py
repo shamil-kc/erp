@@ -38,15 +38,24 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
                 return float(obj)
             return obj
 
+        def convert_date(obj):
+            if isinstance(obj, str) and len(obj) == 10 and obj[4] == '-' and \
+                    obj[7] == '-':
+                try:
+                    return timezone.datetime.strptime(obj, '%Y-%m-%d')
+                except ValueError:
+                    return obj
+            return obj
+
         with transaction.atomic():
             old_instance = self.get_object()
             old_status = old_instance.status
 
-            old_data = {k: convert_decimal(v) for k, v in
+            old_data = {k: convert_date(convert_decimal(v)) for k, v in
                         model_to_dict(old_instance).items()}
             instance = serializer.save(modified_by=self.request.user,
                                        modified_at=timezone.now())
-            new_data = {k: convert_decimal(v) for k, v in
+            new_data = {k: convert_date(convert_decimal(v)) for k, v in
                         model_to_dict(instance).items()}
             changes = {k: {'old': old_data[k], 'new': v} for k, v in
                        new_data.items() if old_data[k] != v}
