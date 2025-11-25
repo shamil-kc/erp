@@ -99,6 +99,8 @@ class PurchaseItem(models.Model):
     unit_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
     shipping_per_unit_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     shipping_per_unit_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shipping_total_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    shipping_total_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     factors = models.CharField(max_length=100, blank=True, null=True)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -144,9 +146,13 @@ class PurchaseItem(models.Model):
             previous = PurchaseItem.objects.get(pk=self.pk)
             previous_qty = previous.qty
 
-        # Calculate amounts before saving
-        self.amount_usd = (self.unit_price_usd + self.shipping_per_unit_usd) * self.qty
-        self.amount_aed = (self.unit_price_aed + self.shipping_per_unit_aed) * self.qty
+        # Calculate shipping totals
+        self.shipping_total_usd = self.shipping_per_unit_usd * self.qty
+        self.shipping_total_aed = self.shipping_per_unit_aed * self.qty
+
+        # Calculate amounts including shipping
+        self.amount_usd = (self.unit_price_usd * self.qty) + self.shipping_total_usd
+        self.amount_aed = (self.unit_price_aed * self.qty) + self.shipping_total_aed
 
         super().save(*args, **kwargs)
 

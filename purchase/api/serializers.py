@@ -45,6 +45,8 @@ class PurchaseItemNestedSerializer(serializers.Serializer):
     unit_price_aed = serializers.DecimalField(max_digits=12, decimal_places=2)
     shipping_per_unit_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     shipping_per_unit_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    shipping_total_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    shipping_total_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     factors = serializers.CharField(allow_blank=True, required=False)
     tax = serializers.IntegerField(required=False)
     amount_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
@@ -107,6 +109,8 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                         unit_price_aed=item['unit_price_aed'],
                         shipping_per_unit_usd=item.get('shipping_per_unit_usd', 0),
                         shipping_per_unit_aed=item.get('shipping_per_unit_aed', 0),
+                        shipping_total_usd=item.get('shipping_total_usd', 0),
+                        shipping_total_aed=item.get('shipping_total_aed', 0),
                         factors=item.get('factors', ''),
                         tax_id=item.get('tax'),
                         amount_usd=item.get('amount_usd'),
@@ -194,6 +198,8 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             unit_price_aed=item_data.get('unit_price_aed'),
                             shipping_per_unit_usd=item_data.get('shipping_per_unit_usd', 0),
                             shipping_per_unit_aed=item_data.get('shipping_per_unit_aed', 0),
+                            shipping_total_usd=item_data.get('shipping_total_usd', 0),
+                            shipping_total_aed=item_data.get('shipping_total_aed', 0),
                             factors=item_data.get('factors', ''),
                             tax_id=item_data.get('tax'),
                             custom_duty_usd_enter=item_data.get('custom_duty_usd_enter', 0),
