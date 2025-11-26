@@ -63,23 +63,26 @@ class PurchaseInvoice(models.Model):
     def calculate_totals(self):
         total_usd = sum([item.amount_usd for item in self.purchase_items.all()])
         total_aed = sum([item.amount_aed for item in self.purchase_items.all()])
-        # Subtract discount (not below zero)
+
         discounted_usd = max(total_usd - (self.discount_usd or Decimal('0')), Decimal('0'))
         discounted_aed = max(total_aed - (self.discount_aed or Decimal('0')), Decimal('0'))
+
         tax = Tax.objects.filter(active=True).first()
         vat_usd = discounted_usd * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
         vat_aed = discounted_aed * (tax.vat_percent / 100) if tax and self.has_tax else Decimal('0')
-        custom_duty_usd = discounted_usd * (tax.custom_duty_percent / 100) if tax and self.has_custom_duty else Decimal('0')
-        custom_duty_aed = discounted_aed * (tax.custom_duty_percent / 100) if tax and self.has_custom_duty else Decimal('0')
+
+        custom_duty_usd = sum([item.custom_duty_usd_enter for item in self.purchase_items.all()])
+        custom_duty_aed = sum([item.custom_duty_aed_enter for item in self.purchase_items.all()])
+
         self.vat_amount_usd = vat_usd
         self.total_with_vat_usd = discounted_usd + vat_usd
         self.vat_amount_aed = vat_aed
         self.total_with_vat_aed = discounted_aed + vat_aed
         PurchaseInvoice.objects.filter(pk=self.pk).update(
             vat_amount_usd=vat_usd,
-            total_with_vat_usd=discounted_usd + vat_usd + custom_duty_usd,
+            total_with_vat_usd=total_usd,
             vat_amount_aed=vat_aed,
-            total_with_vat_aed=discounted_aed + vat_aed + custom_duty_aed,
+            total_with_vat_aed=total_aed,
             custom_duty_usd=custom_duty_usd,
             custom_duty_aed=custom_duty_aed
         )
