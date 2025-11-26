@@ -77,8 +77,8 @@ class PurchaseInvoice(models.Model):
         # Correct calculation: total_with_vat = discounted + vat + custom duty
         self.vat_amount_usd = vat_usd
         self.vat_amount_aed = vat_aed
-        self.total_with_vat_usd = discounted_usd + vat_usd + custom_duty_usd
-        self.total_with_vat_aed = discounted_aed + vat_aed + custom_duty_aed
+        self.total_with_vat_usd = discounted_usd
+        self.total_with_vat_aed = discounted_aed
 
         PurchaseInvoice.objects.filter(pk=self.pk).update(
             vat_amount_usd=vat_usd,
@@ -156,8 +156,8 @@ class PurchaseItem(models.Model):
         self.shipping_total_aed = self.shipping_per_unit_aed * self.qty
 
         # Calculate amounts including shipping
-        self.amount_usd = (self.unit_price_usd * self.qty) + self.shipping_total_usd
-        self.amount_aed = (self.unit_price_aed * self.qty) + self.shipping_total_aed
+        # self.amount_usd = (self.unit_price_usd * self.qty) + self.shipping_total_usd
+        # self.amount_aed = (self.unit_price_aed * self.qty) + self.shipping_total_aed
 
         super().save(*args, **kwargs)
 
