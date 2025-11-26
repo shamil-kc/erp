@@ -156,8 +156,8 @@ class PurchaseItem(models.Model):
         self.shipping_total_aed = self.shipping_per_unit_aed * self.qty
 
         # Calculate amounts including shipping
-        # self.amount_usd = (self.unit_price_usd * self.qty) + self.shipping_total_usd
-        # self.amount_aed = (self.unit_price_aed * self.qty) + self.shipping_total_aed
+        self.amount_usd = (self.unit_price_usd * self.qty)
+        self.amount_aed = (self.unit_price_aed * self.qty)
 
         super().save(*args, **kwargs)
 
