@@ -202,6 +202,8 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             shipping_total_aed=item_data.get('shipping_total_aed', 0),
                             factors=item_data.get('factors', ''),
                             tax_id=item_data.get('tax'),
+                            amount_usd=item_data.get('amount_usd'),
+                            amount_aed=item_data.get('amount_aed'),
                             custom_duty_usd_enter=item_data.get('custom_duty_usd_enter', 0),
                             custom_duty_aed_enter=item_data.get('custom_duty_aed_enter', 0)
                         )
