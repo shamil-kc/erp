@@ -64,6 +64,8 @@ class PurchaseInvoice(models.Model):
         total_usd = sum([item.amount_usd for item in self.purchase_items.all()])
         total_aed = sum([item.amount_aed for item in self.purchase_items.all()])
 
+        print(total_aed, total_usd, "totals")
+
         discounted_usd = max(total_usd - (self.discount_usd or Decimal('0')), Decimal('0'))
         discounted_aed = max(total_aed - (self.discount_aed or Decimal('0')), Decimal('0'))
 
