@@ -61,29 +61,32 @@ class PurchaseInvoice(models.Model):
         return f"Invoice {self.invoice_no}"
 
     def calculate_totals(self):
-        # Sum item amounts
+        # Sum item amounts (already includes unit price, shipping, and custom duty per your API logic)
         total_usd = sum([item.amount_usd or Decimal('0') for item in self.purchase_items.all()])
         total_aed = sum([item.amount_aed or Decimal('0') for item in self.purchase_items.all()])
 
+        # Apply discount
         discounted_usd = max(total_usd - (self.discount_usd or Decimal('0')), Decimal('0'))
         discounted_aed = max(total_aed - (self.discount_aed or Decimal('0')), Decimal('0'))
 
+        # VAT calculation (on discounted total, not including custom duty)
         tax = Tax.objects.filter(active=True).first()
         vat_percent = tax.vat_percent if tax and self.has_tax else Decimal('0')
-
         vat_usd = discounted_usd * (vat_percent / Decimal('100'))
         vat_aed = discounted_aed * (vat_percent / Decimal('100'))
 
-        custom_duty_usd = sum([item.custom_duty_usd_enter or Decimal('0') for item in self.purchase_items.all()])
-        custom_duty_aed = sum([item.custom_duty_aed_enter or Decimal('0') for item in self.purchase_items.all()])
+        # Custom duty (sum of all items' custom_duty_usd_enter * qty)
+        custom_duty_usd = sum([(item.custom_duty_usd_enter or Decimal('0')) * item.qty for item in self.purchase_items.all()])
+        custom_duty_aed = sum([(item.custom_duty_aed_enter or Decimal('0')) * item.qty for item in self.purchase_items.all()])
 
         self.vat_amount_usd = vat_usd
         self.vat_amount_aed = vat_aed
-        self.total_with_vat_usd = discounted_usd + vat_usd + custom_duty_usd
-        self.total_with_vat_aed = discounted_aed + vat_aed + custom_duty_aed
-
         self.custom_duty_usd = custom_duty_usd
         self.custom_duty_aed = custom_duty_aed
+
+        # Final total = discounted + VAT + custom duty
+        self.total_with_vat_usd = discounted_usd + vat_usd
+        self.total_with_vat_aed = discounted_aed + vat_aed
 
         # Save the updated totals to the DB
         PurchaseInvoice.objects.filter(pk=self.pk).update(
@@ -143,16 +146,15 @@ class PurchaseItem(models.Model):
 
     @property
     def vat_amount_usd(self):
-        # Use the related Tax instance to access the VAT percent
+        """Calculate VAT in USD based on amount_usd and tax percent."""
         vat_rate = self.tax.vat_percent if self.tax is not None else 0
-        total_price = self.unit_price_usd * self.qty
-        return total_price * (vat_rate / 100)
+        return (self.amount_usd or Decimal('0')) * (vat_rate / 100)
 
     @property
     def vat_amount_aed(self):
+        """Calculate VAT in AED based on amount_aed and tax percent."""
         vat_rate = self.tax.vat_percent if self.tax is not None else 0
-        total_price = self.unit_price_aed * self.qty
-        return total_price * (vat_rate / 100)
+        return (self.amount_aed or Decimal('0')) * (vat_rate / 100)
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -162,6 +164,7 @@ class PurchaseItem(models.Model):
             previous = PurchaseItem.objects.get(pk=self.pk)
             previous_qty = previous.qty
 
+        # Do not recalculate amount_usd, amount_aed, or custom duty here.
         super().save(*args, **kwargs)
 
         # Update stock based on quantity changes
