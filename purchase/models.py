@@ -125,6 +125,11 @@ class PurchaseItem(models.Model):
     custom_duty_aed_enter = models.DecimalField(max_digits=12,
                                                 decimal_places=2, default=0)
 
+    custom_duty_usd_total = models.DecimalField(max_digits=12,
+                                                decimal_places=2, default=0)
+    custom_duty_aed_total = models.DecimalField(max_digits=12,
+                                                decimal_places=2, default=0)
+
     @property
     def remaining_qty(self):
         """Calculate remaining quantity available for sale"""
@@ -155,9 +160,15 @@ class PurchaseItem(models.Model):
         self.shipping_total_usd = self.shipping_per_unit_usd * self.qty
         self.shipping_total_aed = self.shipping_per_unit_aed * self.qty
 
+        # calculate custom duty totals
+        self.custom_duty_usd_total = self.custom_duty_usd_enter * self.qty
+        self.custom_duty_aed_total = self.custom_duty_aed_enter * self.qty
+
         # Calculate amounts including shipping
-        self.amount_usd = (self.unit_price_usd * self.qty) + self.shipping_total_usd
-        self.amount_aed = (self.unit_price_aed * self.qty) + self.shipping_total_aed
+        self.amount_usd = ((self.unit_price_usd * self.qty) +
+                           self.shipping_total_usd) + self.custom_duty_usd_total
+        self.amount_aed = ((self.unit_price_aed * self.qty) +
+                           self.shipping_total_aed) + self.custom_duty_aed_total
 
         super().save(*args, **kwargs)
 
