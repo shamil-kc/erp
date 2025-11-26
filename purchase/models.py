@@ -74,15 +74,17 @@ class PurchaseInvoice(models.Model):
         custom_duty_usd = sum([item.custom_duty_usd_enter for item in self.purchase_items.all()])
         custom_duty_aed = sum([item.custom_duty_aed_enter for item in self.purchase_items.all()])
 
+        # Correct calculation: total_with_vat = discounted + vat + custom duty
         self.vat_amount_usd = vat_usd
-        self.total_with_vat_usd = discounted_usd
         self.vat_amount_aed = vat_aed
-        self.total_with_vat_aed = discounted_aed
+        self.total_with_vat_usd = discounted_usd + vat_usd + custom_duty_usd
+        self.total_with_vat_aed = discounted_aed + vat_aed + custom_duty_aed
+
         PurchaseInvoice.objects.filter(pk=self.pk).update(
             vat_amount_usd=vat_usd,
-            total_with_vat_usd=discounted_usd,
+            total_with_vat_usd=self.total_with_vat_usd,
             vat_amount_aed=vat_aed,
-            total_with_vat_aed=discounted_aed,
+            total_with_vat_aed=self.total_with_vat_aed,
             custom_duty_usd=custom_duty_usd,
             custom_duty_aed=custom_duty_aed
         )
