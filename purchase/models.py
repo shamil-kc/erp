@@ -77,8 +77,8 @@ class PurchaseInvoice(models.Model):
         # Correct calculation: total_with_vat = discounted + vat + custom duty
         self.vat_amount_usd = vat_usd
         self.vat_amount_aed = vat_aed
-        self.total_with_vat_usd = discounted_usd + vat_usd
-        self.total_with_vat_aed = discounted_aed + vat_usd
+        self.total_with_vat_usd = discounted_usd
+        self.total_with_vat_aed = discounted_aed
 
         PurchaseInvoice.objects.filter(pk=self.pk).update(
             vat_amount_usd=vat_usd,
@@ -156,20 +156,6 @@ class PurchaseItem(models.Model):
             previous = PurchaseItem.objects.get(pk=self.pk)
             previous_qty = previous.qty
 
-        # Calculate shipping totals
-        self.shipping_total_usd = self.shipping_per_unit_usd * self.qty
-        self.shipping_total_aed = self.shipping_per_unit_aed * self.qty
-
-        # calculate custom duty totals
-        self.custom_duty_usd_total = self.custom_duty_usd_enter * self.qty
-        self.custom_duty_aed_total = self.custom_duty_aed_enter * self.qty
-
-        # Calculate amounts including shipping
-        self.amount_usd = ((self.unit_price_usd * self.qty) +
-                           self.shipping_total_usd) + self.custom_duty_usd_total
-        self.amount_aed = ((self.unit_price_aed * self.qty) +
-                           self.shipping_total_aed) + self.custom_duty_aed_total
-
         super().save(*args, **kwargs)
 
         # Update stock based on quantity changes
@@ -180,10 +166,6 @@ class PurchaseItem(models.Model):
             qty_difference = self.qty - previous_qty
             stock.quantity += qty_difference
         stock.save()
-
-        # Recalculate invoice totals if this item belongs to an invoice
-        if self.invoice:
-            self.invoice.calculate_totals()
 
     def delete(self, *args, **kwargs):
         stock = Stock.objects.filter(product_item=self.item).first()
