@@ -77,9 +77,9 @@ class PurchaseInvoice(models.Model):
         self.total_with_vat_aed = discounted_aed + vat_aed
         PurchaseInvoice.objects.filter(pk=self.pk).update(
             vat_amount_usd=vat_usd,
-            total_with_vat_usd=discounted_usd + vat_usd,
+            total_with_vat_usd=discounted_usd + vat_usd + custom_duty_usd,
             vat_amount_aed=vat_aed,
-            total_with_vat_aed=discounted_aed + vat_aed,
+            total_with_vat_aed=discounted_aed + vat_aed + custom_duty_aed,
             custom_duty_usd=custom_duty_usd,
             custom_duty_aed=custom_duty_aed
         )
