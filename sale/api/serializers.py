@@ -106,7 +106,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'has_tax',
             'status',
             'is_sales_approved',
-            'biller_name'
+            'biller_name',
+            'purchase_order_number'
         ]
 
     def validate(self, data):

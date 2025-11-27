@@ -13,6 +13,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from inventory.models import Stock
 from django.utils import timezone
+from rest_framework.decorators import api_view
+from sale.utils import generate_perfoma_invoice_number
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
@@ -185,3 +187,21 @@ class DeliveryNoteViewSet(viewsets.ReadOnlyModelViewSet):
             },
             'total_count': delivery_notes.count()
         })
+
+
+@api_view(['POST'])
+def generate_perfoma_invoice_number_api(request):
+    """
+    Generate and assign a new perfoma invoice number to a sale invoice.
+    Expects: {"sale_invoice_id": <id>}
+    """
+    sale_invoice_id = request.data.get('sale_invoice_id')
+    if not sale_invoice_id:
+        return Response({'error': 'sale_invoice_id is required'}, status=400)
+    try:
+        sale_invoice = SaleInvoice.objects.get(id=sale_invoice_id)
+    except SaleInvoice.DoesNotExist:
+        return Response({'error': 'Sale invoice not found'}, status=404)
+
+    number = generate_perfoma_invoice_number(sale_invoice)
+    return Response({'perfoma_invoice_number': number})

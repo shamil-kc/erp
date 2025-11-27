@@ -25,8 +25,8 @@ def generate_quotation_number(self):
 
 def generate_perfoma_invoice_number(self):
     from sale.models import SaleInvoice
-    if not self.perfoma_invoice_number and self.has_tax == False:
-        prefix = "AJM-"
+    if not self.perfoma_invoice_number:
+        prefix = "PI-"
 
         # Get last perfoma invoice number from DB
         last = (SaleInvoice.objects.exclude(
@@ -37,15 +37,16 @@ def generate_perfoma_invoice_number(self):
             try:
                 last_num = int(last.perfoma_invoice_number.replace(prefix, ""))
             except ValueError:
-                last_num = 2000
+                last_num = 1
         else:
-            last_num = 2000
+            last_num = 1
 
         new_num = last_num + 1
         self.perfoma_invoice_number = f"{prefix}{new_num}"
 
         SaleInvoice.objects.filter(pk=self.pk).update(
             perfoma_invoice_number=self.perfoma_invoice_number)
+    return self.perfoma_invoice_number
 
 def generate_invoice_number(self):
     from sale.models import SaleInvoice

@@ -57,4 +57,7 @@ urlpatterns = [
     path('reminders/', RemindersAPIView.as_view(), name='reminders'),
     path('add-stock/', AddStockAPIView.as_view(), name='add-stock'),
     path('edit-stock/', EditStockAPIView.as_view(), name='edit-stock'),
+    path('generate-perfoma-invoice-number/', generate_perfoma_invoice_number_api,
+         name='generate-perfoma-invoice-number'),
+
 ]
