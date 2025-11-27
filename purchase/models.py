@@ -88,8 +88,8 @@ class PurchaseInvoice(models.Model):
         self.custom_duty_aed = custom_duty_aed
 
         # Final total = discounted + VAT + custom duty
-        self.total_with_vat_usd = discounted_usd + vat_usd
-        self.total_with_vat_aed = discounted_aed + vat_aed
+        self.total_with_vat_usd = discounted_usd
+        self.total_with_vat_aed = discounted_aed
 
         # Save the updated totals to the DB
         PurchaseInvoice.objects.filter(pk=self.pk).update(
