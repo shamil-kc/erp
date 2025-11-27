@@ -73,6 +73,8 @@ class PurchaseInvoice(models.Model):
 
         # VAT calculation (on discounted total, not including custom duty)
         tax = Tax.objects.filter(active=True).first()
+        print(tax, "Tax obj ")
+        print(self.has_tax, "Has tax")
         if tax and tax.vat_percent and self.has_tax:
             vat_usd = sum([item.vat_amount or Decimal('0') for item in self.purchase_items.all()])
             vat_aed = sum([item.vat_amount or Decimal('0') for item in self.purchase_items.all()])
