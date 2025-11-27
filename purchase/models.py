@@ -194,12 +194,6 @@ class PurchaseItem(models.Model):
         self.vat_total_usd = self.vat_per_unit_usd * self.qty
         self.vat_total_aed = self.vat_per_unit_aed * self.qty
 
-        # Calculate amount (total + shipping + custom duty)
-        self.amount_usd = base_usd
-        self.amount_aed = base_aed
-
-        # Store VAT amount for invoice aggregation
-        self.vat_amount = self.vat_total_usd if self.tax and self.tax.currency == 'USD' else self.vat_total_aed
 
     def save(self, *args, **kwargs):
         self.calculate_totals()
