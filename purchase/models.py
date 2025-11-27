@@ -111,7 +111,6 @@ class PurchaseInvoice(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.calculate_totals()
 
 
 class PurchaseItem(models.Model):

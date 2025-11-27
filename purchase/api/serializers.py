@@ -119,6 +119,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                         custom_duty_usd_enter=item.get('custom_duty_usd_enter', 0),
                         custom_duty_aed_enter=item.get('custom_duty_aed_enter', 0)
                     )
+                invoice.calculate_totals()
             except Exception as e:
                 transaction.set_rollback(True)
                 raise e
@@ -207,6 +208,8 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             custom_duty_usd_enter=item_data.get('custom_duty_usd_enter', 0),
                             custom_duty_aed_enter=item_data.get('custom_duty_aed_enter', 0)
                         )
+
+            instance.calculate_totals()
 
         return instance
 
