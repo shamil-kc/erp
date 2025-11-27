@@ -117,11 +117,23 @@ class SaleItem(models.Model):
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='sale_items')
     item = models.ForeignKey(ProductItem, on_delete=models.CASCADE)
     qty = models.PositiveIntegerField()
+
+    # sale prices
     sale_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price_usd = models.DecimalField(max_digits=12, decimal_places=2,default=0)
+    total_price_aed = models.DecimalField(max_digits=12, decimal_places=2,default=0)
+
+    # VAT fields
+    vat_per_unit_usd = models.DecimalField(max_digits=12, decimal_places=2,default=0)
+    vat_per_unit_aed = models.DecimalField(max_digits=12, decimal_places=2,default=0)
+    vat_total_usd = models.DecimalField(max_digits=12, decimal_places=2,default=0)
+    vat_total_aed = models.DecimalField(max_digits=12, decimal_places=2,default=0)
+
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     vat_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
@@ -129,10 +141,8 @@ class SaleItem(models.Model):
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                     related_name='+')
 
-    shipping_usd = models.DecimalField(max_digits=12, decimal_places=2,
-                                       default=0)
-    shipping_aed = models.DecimalField(max_digits=12, decimal_places=2,
-                                       default=0)
+    shipping_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    shipping_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     # Mapping to identify which purchase this sale item comes from
     purchase_item = models.ForeignKey(
@@ -149,7 +159,26 @@ class SaleItem(models.Model):
         default=DELIVERY_STATUS_NOT_DELIVERED
     )
 
+    def calculate_totals(self):
+        # Calculate total prices
+        self.total_price_usd = (self.sale_price_usd or Decimal('0')) * self.qty
+        self.total_price_aed = (self.sale_price_aed or Decimal('0')) * self.qty
+
+        # Calculate amount (total + shipping)
+        self.amount_usd = self.total_price_usd + (self.shipping_usd or Decimal('0'))
+        self.amount_aed = self.total_price_aed + (self.shipping_aed or Decimal('0'))
+
+        from common.models import Tax
+        tax = Tax.objects.filter(active=True).first()
+        vat_percent = tax.vat_percent if tax and self.invoice.has_tax else Decimal('0')
+
+        self.vat_per_unit_usd = (self.sale_price_usd or Decimal('0')) * (vat_percent / 100)
+        self.vat_per_unit_aed = (self.sale_price_aed or Decimal('0')) * (vat_percent / 100)
+        self.vat_total_usd = self.vat_per_unit_usd * self.qty
+        self.vat_total_aed = self.vat_per_unit_aed * self.qty
+
     def save(self, *args, **kwargs):
+        self.calculate_totals()
         is_new = self.pk is None
         previous_qty = 0
         if not is_new:

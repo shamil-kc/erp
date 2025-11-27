@@ -109,12 +109,31 @@ class PurchaseItem(models.Model):
     item = models.ForeignKey(ProductItem, on_delete=models.CASCADE)
     qty = models.PositiveIntegerField()
     sold_qty = models.PositiveIntegerField(default=0)
+
+    # pricing details
     unit_price_usd = models.DecimalField(max_digits=10, decimal_places=2)
     unit_price_aed = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_price_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # shipping details
     shipping_per_unit_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     shipping_per_unit_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     shipping_total_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     shipping_total_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # custom duty details
+    custom_duty_usd_enter = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_duty_aed_enter = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_duty_usd_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    custom_duty_aed_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # vat details
+    vat_per_unit_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat_per_unit_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat_total_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat_total_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     factors = models.CharField(max_length=100, blank=True, null=True)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -129,15 +148,7 @@ class PurchaseItem(models.Model):
     tax = models.ForeignKey(Tax, on_delete=models.PROTECT,
                             related_name="purchase_items" , null=True, blank=True)
 
-    custom_duty_usd_enter = models.DecimalField(max_digits=12,
-                                                decimal_places=2, default=0)
-    custom_duty_aed_enter = models.DecimalField(max_digits=12,
-                                                decimal_places=2, default=0)
 
-    custom_duty_usd_total = models.DecimalField(max_digits=12,
-                                                decimal_places=2, default=0)
-    custom_duty_aed_total = models.DecimalField(max_digits=12,
-                                                decimal_places=2, default=0)
 
     @property
     def remaining_qty(self):
@@ -156,7 +167,39 @@ class PurchaseItem(models.Model):
         vat_rate = self.tax.vat_percent if self.tax is not None else 0
         return (self.amount_aed or Decimal('0')) * (vat_rate / 100)
 
+    def calculate_totals(self):
+        # Calculate total prices
+        self.total_price_usd = (self.unit_price_usd or Decimal('0')) * self.qty
+        self.total_price_aed = (self.unit_price_aed or Decimal('0')) * self.qty
+
+        # Calculate shipping totals
+        self.shipping_total_usd = (self.shipping_per_unit_usd or Decimal('0')) * self.qty
+        self.shipping_total_aed = (self.shipping_per_unit_aed or Decimal('0')) * self.qty
+
+        # Calculate custom duty totals
+        self.custom_duty_usd_total = (self.custom_duty_usd_enter or Decimal('0')) * self.qty
+        self.custom_duty_aed_total = (self.custom_duty_aed_enter or Decimal('0')) * self.qty
+
+        # Calculate VAT per unit
+        vat_rate = self.tax.vat_percent if self.tax else Decimal('0')
+        base_usd = self.total_price_usd + self.shipping_total_usd + self.custom_duty_usd_total
+        base_aed = self.total_price_aed + self.shipping_total_aed + self.custom_duty_aed_total
+
+        self.vat_per_unit_usd = ((self.unit_price_usd or Decimal('0')) + (self.shipping_per_unit_usd or Decimal('0')) + (self.custom_duty_usd_enter or Decimal('0'))) * (vat_rate / 100)
+        self.vat_per_unit_aed = ((self.unit_price_aed or Decimal('0')) + (self.shipping_per_unit_aed or Decimal('0')) + (self.custom_duty_aed_enter or Decimal('0'))) * (vat_rate / 100)
+
+        self.vat_total_usd = self.vat_per_unit_usd * self.qty
+        self.vat_total_aed = self.vat_per_unit_aed * self.qty
+
+        # Calculate amount (total + shipping + custom duty)
+        self.amount_usd = base_usd
+        self.amount_aed = base_aed
+
+        # Store VAT amount for invoice aggregation
+        self.vat_amount = self.vat_total_usd if self.tax and self.tax.currency == 'USD' else self.vat_total_aed
+
     def save(self, *args, **kwargs):
+        self.calculate_totals()
         is_new = self.pk is None
         previous_qty = 0
 
@@ -164,7 +207,6 @@ class PurchaseItem(models.Model):
             previous = PurchaseItem.objects.get(pk=self.pk)
             previous_qty = previous.qty
 
-        # Do not recalculate amount_usd, amount_aed, or custom duty here.
         super().save(*args, **kwargs)
 
         # Update stock based on quantity changes
