@@ -65,8 +65,6 @@ class PurchaseInvoice(models.Model):
         total_usd = sum([item.amount_usd or Decimal('0') for item in self.purchase_items.all()])
         total_aed = sum([item.amount_aed or Decimal('0') for item in self.purchase_items.all()])
 
-        print(total_aed, "Total enter aed")
-
         # Apply discount
         discounted_usd = max(total_usd - (self.discount_usd or Decimal('0')), Decimal('0'))
         discounted_aed = max(total_aed - (self.discount_aed or Decimal('0')), Decimal('0'))
@@ -82,8 +80,6 @@ class PurchaseInvoice(models.Model):
             vat_usd = Decimal('0')
             vat_aed = Decimal('0')
 
-        print(vat_aed, "Toatal vat aed")
-
         # Custom duty (sum of all items' custom_duty_usd_enter * qty)
         custom_duty_usd = sum([(item.custom_duty_usd_enter or Decimal('0')) * item.qty for item in self.purchase_items.all()])
         custom_duty_aed = sum([(item.custom_duty_aed_enter or Decimal('0')) * item.qty for item in self.purchase_items.all()])
@@ -96,8 +92,6 @@ class PurchaseInvoice(models.Model):
         # Final total = discounted + VAT + custom duty
         total_with_vat_usd = discounted_usd + vat_usd
         total_with_vat_aed = discounted_aed + vat_aed
-
-        print(total_with_vat_aed, "Toatal total")
 
         # Save the updated totals to the DB
         PurchaseInvoice.objects.filter(pk=self.pk).update(
