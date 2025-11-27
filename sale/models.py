@@ -164,10 +164,6 @@ class SaleItem(models.Model):
         self.total_price_usd = (self.sale_price_usd or Decimal('0')) * self.qty
         self.total_price_aed = (self.sale_price_aed or Decimal('0')) * self.qty
 
-        # Calculate amount (total + shipping)
-        self.amount_usd = self.total_price_usd + (self.shipping_usd or Decimal('0'))
-        self.amount_aed = self.total_price_aed + (self.shipping_aed or Decimal('0'))
-
         from common.models import Tax
         tax = Tax.objects.filter(active=True).first()
         vat_percent = tax.vat_percent if tax and self.invoice.has_tax else Decimal('0')
