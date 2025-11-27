@@ -6,7 +6,8 @@ from django.contrib.auth.models import User
 from products.models import ProductItem
 from customer.models import Party
 from inventory.models import Stock
-from .utils import generate_quotation_number, generate_perfoma_invoice_number
+from .utils import (generate_quotation_number, generate_perfoma_invoice_number,
+                    generate_invoice_number)
 
 
 class SaleInvoice(models.Model):
@@ -28,7 +29,7 @@ class SaleInvoice(models.Model):
         (STATUS_RETURNED, 'Returned'),
     ]
 
-    invoice_no = models.CharField(max_length=50, unique=True)
+    invoice_no = models.CharField(max_length=50, unique=True, null=True)
 
     status = models.CharField(max_length=30, choices=STATUS_CHOICES,
                               default=STATUS_SALES_TEAM_PENDING)
@@ -58,7 +59,8 @@ class SaleInvoice(models.Model):
     biller_name = models.CharField(max_length=100, blank=True, null=True)
     quotation_number = models.CharField(max_length=50, blank=True, null=True)
     perfoma_invoice_number = models.CharField(max_length=50, blank=True, null=True)
-    tax_invoice_number = models.CharField(max_length=50, blank=True, null=True)
+    purchase_order_number = models.CharField(max_length=50, blank=True,
+                                           null=True)
 
     def calculate_totals(self):
         from common.models import Tax
@@ -98,9 +100,8 @@ class SaleInvoice(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.calculate_totals()
+        generate_invoice_number(self)
         generate_quotation_number(self)
-        generate_perfoma_invoice_number(self)
 
 
     def __str__(self):

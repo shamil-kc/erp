@@ -93,7 +93,6 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaleInvoice
         fields = [
-            'invoice_no',
             'party_id',
             'sale_date',
             'items',
@@ -182,7 +181,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SaleInvoice
-        fields = ['invoice_no', 'party_id', 'sale_date', 'discount_usd',
+        fields = ['party_id', 'sale_date', 'discount_usd',
                   'discount_aed', 'items','has_service_fee', 'service_fee',
                   'has_commission', 'commission', 'has_tax', 'status',
                   'is_sales_approved', 'biller_name']
