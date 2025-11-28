@@ -19,7 +19,7 @@ class AddStockAPIView(APIView):
         tax = None
 
         # Validate required fields
-        if not all([product_item_id, qty, unit_price_usd, unit_price_aed]):
+        if not all([product_item_id, qty, unit_price_aed]):
             return Response({'error': 'Missing required fields.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
