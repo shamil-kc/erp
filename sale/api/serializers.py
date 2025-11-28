@@ -107,7 +107,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'status',
             'is_sales_approved',
             'biller_name',
-            'purchase_order_number'
+            'purchase_order_number',
+            'invoice_no'
         ]
 
     def validate(self, data):
@@ -185,7 +186,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
         fields = ['party_id', 'sale_date', 'discount_usd',
                   'discount_aed', 'items','has_service_fee', 'service_fee',
                   'has_commission', 'commission', 'has_tax', 'status',
-                  'is_sales_approved', 'biller_name']
+                  'is_sales_approved', 'biller_name', 'invoice_no']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
