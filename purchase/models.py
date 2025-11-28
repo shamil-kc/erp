@@ -106,6 +106,20 @@ class PurchaseInvoice(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        # Restock inventory for each purchase item before deleting
+        for purchase_item in self.purchase_items.all():
+            # Restock: add back the qty to stock
+            stock = Stock.objects.filter(product_item=purchase_item.item).first()
+            if stock:
+                stock.quantity -= purchase_item.sold_qty  # Remove sold qty from stock
+                stock.quantity += purchase_item.qty       # Add back the purchased qty
+                stock.save()
+            # Optionally, handle related sale items if you want to update them
+
+        self.purchase_items.all().delete()
+        super().delete(*args, **kwargs)
+
 
 class PurchaseItem(models.Model):
     invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE,

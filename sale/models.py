@@ -107,6 +107,20 @@ class SaleInvoice(models.Model):
     def __str__(self):
         return f"Invoice {self.invoice_no}"
 
+    def delete(self, *args, **kwargs):
+        # Restock inventory for each sale item before deleting
+        for sale_item in self.sale_items.all():
+            stock = Stock.objects.filter(product_item=sale_item.item).first()
+            if stock:
+                stock.quantity += sale_item.qty
+                stock.save()
+            # Decrease sold_qty in related PurchaseItem
+            if sale_item.purchase_item:
+                sale_item.purchase_item.sold_qty -= sale_item.qty
+                sale_item.purchase_item.save()
+        self.sale_items.all().delete()
+        super().delete(*args, **kwargs)
+
 class SaleItem(models.Model):
     DELIVERY_STATUS_DELIVERED = 'delivered'
     DELIVERY_STATUS_NOT_DELIVERED = 'not_delivered'
