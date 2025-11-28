@@ -112,8 +112,7 @@ class PurchaseInvoice(models.Model):
             # Restock: add back the qty to stock
             stock = Stock.objects.filter(product_item=purchase_item.item).first()
             if stock:
-                stock.quantity -= purchase_item.sold_qty  # Remove sold qty from stock
-                stock.quantity += purchase_item.qty       # Add back the purchased qty
+                stock.quantity -= purchase_item.qty
                 stock.save()
             # Optionally, handle related sale items if you want to update them
 

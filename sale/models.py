@@ -114,7 +114,6 @@ class SaleInvoice(models.Model):
             if stock:
                 stock.quantity += sale_item.qty
                 stock.save()
-            # Decrease sold_qty in related PurchaseItem
             if sale_item.purchase_item:
                 sale_item.purchase_item.sold_qty -= sale_item.qty
                 sale_item.purchase_item.save()
