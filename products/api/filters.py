@@ -10,8 +10,8 @@ class ProductItemFilter(django_filters.FilterSet):
         return queryset.filter(
             models.Q(product_code__icontains=value) |
             models.Q(grade__grade__icontains=value) |
-            models.Q(grade__product_type__type_name__icontains=value) |
-            models.Q(grade__product_type__product__name__icontains=value)
+            models.Q(product_type__type_name__icontains=value) |
+            models.Q(product__name__icontains=value)
         )
 
     def filter_is_stock(self, queryset, name, value):

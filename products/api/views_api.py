@@ -155,6 +155,7 @@ class ProductItemViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         search_query = request.query_params.get('search')
         if search_query:
+            print(search_query, "sh")
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
