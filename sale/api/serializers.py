@@ -8,8 +8,8 @@ from banking.api.serializers import PaymentEntrySerializer
 from sale.models import *
 from purchase.models import PurchaseItem
 from banking.models import PaymentEntry
-from common.models import ServiceFee,Commission
-from sale.models import SaleReturnItem
+from common.models import ServiceFee,Commission, ExtraCharges
+from django.contrib.contenttypes.models import ContentType
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
@@ -62,6 +62,11 @@ class SaleItemNestedSerializer(serializers.Serializer):
     vat_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
+class ExtraChargesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExtraCharges
+        fields = ['id', 'amount', 'created_at', 'modified_at', 'created_by']
+
 class SaleInvoiceSerializer(serializers.ModelSerializer):
     sale_items = SaleItemSerializer(many=True, read_only=True)
     party = PartySerializer(read_only=True)
@@ -71,6 +76,7 @@ class SaleInvoiceSerializer(serializers.ModelSerializer):
     has_tax = serializers.BooleanField(required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
+    extra_charges = ExtraChargesSerializer(many=True, read_only=True)
     class Meta:
         model = SaleInvoice
         fields = '__all__'
@@ -86,6 +92,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     has_commission = serializers.BooleanField(write_only=True, default=False)
     commission = CommissionSerializer(write_only=True, required=False)
     payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
+    extra_charges = serializers.ListField(child=serializers.DecimalField(max_digits=14, decimal_places=2), required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     biller_name = serializers.CharField(required=False, allow_blank=True)
@@ -108,7 +115,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'is_sales_approved',
             'biller_name',
             'purchase_order_number',
-            'invoice_no'
+            'invoice_no',
+            'extra_charges'
         ]
 
     def validate(self, data):
@@ -132,6 +140,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
         has_commission = validated_data.pop('has_commission', False)
         commission_data = validated_data.pop('commission', None)
         payments_data = validated_data.pop('payments',[])
+        extra_charges_data = validated_data.pop('extra_charges', [])
 
         invoice = SaleInvoice.objects.create(**validated_data)
         for item in items_data:
@@ -165,6 +174,15 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
                                         invoice_type='sale',
                 payment_type=payment['payment_type'], amount=payment['amount'],
                 created_by=self.context['request'].user)
+
+        # create extra charges if any
+        for amount in extra_charges_data:
+            ExtraCharges.objects.create(
+                content_type=ContentType.objects.get_for_model(SaleInvoice),
+                object_id=invoice.id,
+                amount=amount,
+                created_by=self.context['request'].user
+            )
         return invoice
 
 class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
@@ -177,6 +195,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
     has_commission = serializers.BooleanField(write_only=True, default=False)
     commission = CommissionSerializer(write_only=True, required=False)
+    extra_charges = serializers.ListField(child=serializers.DecimalField(max_digits=14, decimal_places=2), required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     biller_name = serializers.CharField(required=False, allow_blank=True)
@@ -187,7 +206,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                   'discount_aed', 'items','has_service_fee', 'service_fee',
                   'has_commission', 'commission', 'has_tax', 'status',
                   'is_sales_approved', 'biller_name', 'purchase_order_number',
-                  'invoice_no']
+                  'invoice_no', 'extra_charges']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
@@ -196,6 +215,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
         has_commission = validated_data.pop('has_commission', False)
         commission_data = validated_data.pop('commission', None)
         has_tax = validated_data.pop('has_tax', instance.has_tax)
+        extra_charges_data = validated_data.pop('extra_charges', None)
 
         with transaction.atomic():
             for attr, value in validated_data.items():
@@ -265,6 +285,20 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                     Commission.objects.create(sales_invoice=instance, **commission_data)
             elif not has_commission:
                 Commission.objects.filter(sales_invoice=instance).delete()
+
+            if extra_charges_data is not None:
+                # Remove old, add new
+                ExtraCharges.objects.filter(
+                    content_type=ContentType.objects.get_for_model(SaleInvoice),
+                    object_id=instance.id
+                ).delete()
+                for amount in extra_charges_data:
+                    ExtraCharges.objects.create(
+                        content_type=ContentType.objects.get_for_model(SaleInvoice),
+                        object_id=instance.id,
+                        amount=amount,
+                        created_by=self.context['request'].user
+                    )
 
             instance.calculate_totals()
         return instance

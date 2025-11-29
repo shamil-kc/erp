@@ -8,6 +8,8 @@ from customer.models import Party
 from inventory.models import Stock
 from .utils import (generate_quotation_number, generate_perfoma_invoice_number,
                     generate_invoice_number)
+from django.contrib.contenttypes.fields import GenericRelation
+from common.models import ExtraCharges
 
 
 class SaleInvoice(models.Model):
@@ -61,6 +63,7 @@ class SaleInvoice(models.Model):
     perfoma_invoice_number = models.CharField(max_length=50, blank=True, null=True)
     purchase_order_number = models.CharField(max_length=50, blank=True,
                                            null=True)
+    extra_charges = GenericRelation('common.ExtraCharges', related_query_name='sale_invoices')
 
     def calculate_totals(self):
         from common.models import Tax

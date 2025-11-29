@@ -6,6 +6,8 @@ from customer.api.serializers import PartySerializer
 from purchase.models import *
 from banking.models import PaymentEntry
 from inventory.models import Stock
+from common.models import ExtraCharges
+from django.contrib.contenttypes.models import ContentType
 
 
 class PurchaseItemSerializer(serializers.ModelSerializer):
@@ -28,11 +30,18 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         return None
 
 
+class ExtraChargesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExtraCharges
+        fields = ['id', 'amount', 'created_at', 'modified_at', 'created_by']
+
+
 class PurchaseInvoiceSerializer(serializers.ModelSerializer):
     purchase_items = PurchaseItemSerializer(many=True, read_only=True)
     party = PartySerializer(read_only=True)
     party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party', write_only=True)
     has_tax = serializers.BooleanField(required=False)  # Add this field
+    extra_charges = ExtraChargesSerializer(many=True, read_only=True)
     class Meta:
         model = PurchaseInvoice
         fields = '__all__'
@@ -71,6 +80,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     currency = serializers.CharField(required=False, allow_blank=True)
     currency_rate = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     status = serializers.ChoiceField(choices=PurchaseInvoice.STATUS_CHOICES, required=False)
+    extra_charges = serializers.ListField(child=serializers.DecimalField(max_digits=14, decimal_places=2), required=False)
 
     def validate(self, data):
         payments = data.get('payments', [])
@@ -91,12 +101,13 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax',
                   'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
-                  'currency', 'currency_rate', 'status']
+                  'currency', 'currency_rate', 'status', 'extra_charges']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         payments_data = validated_data.pop('payments', [])
         has_tax = validated_data.pop('has_tax', True)
+        extra_charges_data = validated_data.pop('extra_charges', [])
         with transaction.atomic():
             try:
                 invoice = PurchaseInvoice.objects.create(has_tax=has_tax, **validated_data)
@@ -118,6 +129,14 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                         vat_amount=item.get('vat_amount'),
                         custom_duty_usd_enter=item.get('custom_duty_usd_enter', 0),
                         custom_duty_aed_enter=item.get('custom_duty_aed_enter', 0)
+                    )
+                # create extra charges if any
+                for amount in extra_charges_data:
+                    ExtraCharges.objects.create(
+                        content_type=ContentType.objects.get_for_model(PurchaseInvoice),
+                        object_id=invoice.id,
+                        amount=amount,
+                        created_by=self.context['request'].user
                     )
                 invoice.calculate_totals()
             except Exception as e:
@@ -142,16 +161,18 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                                              required=False)
     status = serializers.ChoiceField(choices=PurchaseInvoice.STATUS_CHOICES,
                                      required=False)
+    extra_charges = serializers.ListField(child=serializers.DecimalField(max_digits=14, decimal_places=2), required=False)
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'has_tax', 'status',
                   'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
-                  'currency', 'currency_rate', 'status']
+                  'currency', 'currency_rate', 'status', 'extra_charges']
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
         has_tax = validated_data.pop('has_tax', instance.has_tax)
+        extra_charges_data = validated_data.pop('extra_charges', None)
         with transaction.atomic():
             # Update invoice fields
             for attr, value in validated_data.items():
@@ -208,6 +229,19 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                             custom_duty_usd_enter=item_data.get('custom_duty_usd_enter', 0),
                             custom_duty_aed_enter=item_data.get('custom_duty_aed_enter', 0)
                         )
+
+            if extra_charges_data is not None:
+                ExtraCharges.objects.filter(
+                    content_type=ContentType.objects.get_for_model(PurchaseInvoice),
+                    object_id=instance.id
+                ).delete()
+                for amount in extra_charges_data:
+                    ExtraCharges.objects.create(
+                        content_type=ContentType.objects.get_for_model(PurchaseInvoice),
+                        object_id=instance.id,
+                        amount=amount,
+                        created_by=self.context['request'].user
+                    )
 
             instance.calculate_totals()
 

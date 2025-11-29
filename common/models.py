@@ -1,12 +1,13 @@
 from django.db import models
 from django.contrib.auth.models import User
-from sale.models import SaleInvoice
 from django.utils import timezone
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 
 class ServiceFee(models.Model):
     sales_invoice = models.ForeignKey(
-        SaleInvoice,
+        'sale.SaleInvoice',
         on_delete=models.CASCADE,
         blank=True,
         null=True,
@@ -32,7 +33,7 @@ class ServiceFee(models.Model):
 class Commission(models.Model):
     TRANSACTION_TYPE_CHOICES = [('credit', 'Credit'), ('debit', 'Debit'),]
     sales_invoice = models.ForeignKey(
-        SaleInvoice,
+        'sale.SaleInvoice',
         on_delete=models.CASCADE,
         blank=True,
         null=True,
@@ -152,13 +153,9 @@ class Asset(models.Model):
 
 
 class ExtraCharges(models.Model):
-
-    invoice_type = models.CharField(max_length=10,
-        choices=(('sale', 'Sale'), ('purchase', 'Purchase')),
-        help_text='Type of invoice this payment belongs to')
-
-    invoice_id = models.PositiveIntegerField(
-        help_text='ID of related Sale or Purchase invoice')
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
 
     amount = models.DecimalField(max_digits=14, decimal_places=2)
 
@@ -168,7 +165,7 @@ class ExtraCharges(models.Model):
                                    null=True)
 
     class Meta:
-        verbose_name_plural = "Payment Entries"
+        verbose_name_plural = "Extra Charges"
 
     def __str__(self):
-        return f"{self.invoice_type} invoice #{self.invoice_id}"
+        return f"ExtraCharge for {self.content_object}"

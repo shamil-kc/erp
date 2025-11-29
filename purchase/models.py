@@ -6,6 +6,7 @@ from inventory.models import Stock
 from products.models import ProductItem
 from customer.models import Party
 from common.models import Tax
+from django.contrib.contenttypes.fields import GenericRelation
 
 
 class PurchaseInvoice(models.Model):
@@ -56,6 +57,7 @@ class PurchaseInvoice(models.Model):
         default='inside')
     has_tax = models.BooleanField(default=True)
     has_custom_duty = models.BooleanField(default=False)
+    extra_charges = GenericRelation('common.ExtraCharges', related_query_name='purchase_invoices')
 
     def __str__(self):
         return f"Invoice {self.invoice_no}"
