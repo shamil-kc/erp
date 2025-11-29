@@ -65,7 +65,7 @@ class SaleItemNestedSerializer(serializers.Serializer):
 class ExtraChargesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExtraCharges
-        fields = ['id', 'amount', 'created_at', 'modified_at', 'created_by']
+        fields = ['id', 'amount', 'description', 'vat', 'created_at', 'modified_at', 'created_by']
 
 class SaleInvoiceSerializer(serializers.ModelSerializer):
     sale_items = SaleItemSerializer(many=True, read_only=True)
@@ -92,7 +92,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     has_commission = serializers.BooleanField(write_only=True, default=False)
     commission = CommissionSerializer(write_only=True, required=False)
     payments = PaymentEntrySerializer(many=True, write_only=True, required=False)
-    extra_charges = serializers.ListField(child=serializers.DecimalField(max_digits=14, decimal_places=2), required=False)
+    extra_charges = ExtraChargesSerializer(many=True, write_only=True, required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     biller_name = serializers.CharField(required=False, allow_blank=True)
@@ -176,11 +176,13 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
                 created_by=self.context['request'].user)
 
         # create extra charges if any
-        for amount in extra_charges_data:
+        for charge in extra_charges_data:
             ExtraCharges.objects.create(
                 content_type=ContentType.objects.get_for_model(SaleInvoice),
                 object_id=invoice.id,
-                amount=amount,
+                amount=charge.get('amount'),
+                description=charge.get('description', ''),
+                vat=charge.get('vat', 0),
                 created_by=self.context['request'].user
             )
         return invoice
@@ -195,7 +197,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
     has_commission = serializers.BooleanField(write_only=True, default=False)
     commission = CommissionSerializer(write_only=True, required=False)
-    extra_charges = serializers.ListField(child=serializers.DecimalField(max_digits=14, decimal_places=2), required=False)
+    extra_charges = ExtraChargesSerializer(many=True, write_only=True, required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     biller_name = serializers.CharField(required=False, allow_blank=True)
@@ -292,11 +294,13 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                     content_type=ContentType.objects.get_for_model(SaleInvoice),
                     object_id=instance.id
                 ).delete()
-                for amount in extra_charges_data:
+                for charge in extra_charges_data:
                     ExtraCharges.objects.create(
                         content_type=ContentType.objects.get_for_model(SaleInvoice),
                         object_id=instance.id,
-                        amount=amount,
+                        amount=charge.get('amount'),
+                        description=charge.get('description', ''),
+                        vat=charge.get('vat', 0),
                         created_by=self.context['request'].user
                     )
 
