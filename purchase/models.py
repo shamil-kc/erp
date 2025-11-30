@@ -217,8 +217,12 @@ class PurchaseItem(models.Model):
         previous_qty = 0
 
         if not is_new:
-            previous = PurchaseItem.objects.get(pk=self.pk)
-            previous_qty = previous.qty
+            try:
+                previous = PurchaseItem.objects.get(pk=self.pk)
+                qty = previous.qty
+                previous_qty = qty
+            except PurchaseItem.DoesNotExist:
+                previous_qty = 0
 
         super().save(*args, **kwargs)
 
