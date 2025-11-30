@@ -76,10 +76,15 @@ class SaleInvoiceSerializer(serializers.ModelSerializer):
     has_tax = serializers.BooleanField(required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
-    extra_charges = ExtraChargesSerializer(many=True, read_only=True)
+    # Fix: Use .all() for GenericRelation
+    extra_charges = serializers.SerializerMethodField()
+
     class Meta:
         model = SaleInvoice
         fields = '__all__'
+
+    def get_extra_charges(self, obj):
+        return ExtraChargesSerializer(obj.extra_charges.all(), many=True).data
 
 class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
@@ -190,14 +195,15 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
 class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     items = SaleItemNestedSerializer(many=True, write_only=True)
     party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party')
-    has_tax = serializers.BooleanField(required=False, default=True)  # Add this field
+    has_tax = serializers.BooleanField(required=False, default=True)
     discount_usd = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     discount_aed = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     has_service_fee = serializers.BooleanField(write_only=True, default=False)
     service_fee = ServiceFeeNestedSerializer(write_only=True, required=False)
     has_commission = serializers.BooleanField(write_only=True, default=False)
     commission = CommissionSerializer(write_only=True, required=False)
-    extra_charges = serializers.ListField(child=serializers.DecimalField(max_digits=14, decimal_places=2), required=False)
+    # Fix: Use correct serializer for extra_charges
+    extra_charges = ExtraChargesSerializer(many=True, required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     biller_name = serializers.CharField(required=False, allow_blank=True)
@@ -227,8 +233,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
 
             if items_data is not None:
                 existing_ids = [item.id for item in instance.sale_items.all()]
-                sent_ids = [item.get('id') for item in items_data if
-                            item.get('id')]
+                sent_ids = [item.get('id') for item in items_data if item.get('id')]
 
                 # Delete removed items
                 for id in existing_ids:
@@ -258,7 +263,10 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                             sale_price_aed=item_data['sale_price_aed'],
                             shipping_usd=item_data.get('shipping_usd', 0),
                             shipping_aed=item_data.get('shipping_aed', 0),
-                            purchase_item=item_data.get('purchase_item')
+                            purchase_item=item_data.get('purchase_item'),
+                            amount_usd=item_data.get('amount_usd'),
+                            amount_aed=item_data.get('amount_aed'),
+                            vat_amount=item_data.get('vat_amount')
                         )
             # Handle service fee
             if has_service_fee and service_fee_data:
@@ -294,11 +302,13 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                     content_type=ContentType.objects.get_for_model(SaleInvoice),
                     object_id=instance.id
                 ).delete()
-                for amount in extra_charges_data:
+                for charge in extra_charges_data:
                     ExtraCharges.objects.create(
                         content_type=ContentType.objects.get_for_model(SaleInvoice),
                         object_id=instance.id,
-                        amount=amount,
+                        amount=charge.get('amount'),
+                        description=charge.get('description', ''),
+                        vat=charge.get('vat', 0),
                         created_by=self.context['request'].user
                     )
 

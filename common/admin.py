@@ -30,3 +30,8 @@ class ServiceFee(admin.ModelAdmin):
     list_display = ('__str__', 'description', 'amount_aed', 'amount_usd')
     search_fields = ('__str__',)
 
+
+@admin.register(ExtraCharges)
+class ExtraChargesAdmin(admin.ModelAdmin):
+    list_display = ('description', 'amount',)
+    search_fields = ('description',)
