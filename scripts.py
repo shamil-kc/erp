@@ -5,95 +5,31 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shiperp.settings")
 django.setup()
 
 
-from purchase.models import PurchaseItem, PurchaseInvoice
-from django.db import transaction
+from purchase.models import PurchaseItem
+from inventory.models import Stock
 from django.core.management.base import BaseCommand
+from django.db import models
 
 class Command(BaseCommand):
-    help = 'Update shipping_total_usd and shipping_total_aed fields for all existing PurchaseItem records'
+    help = 'Reset stock quantity to sum of all purchase item quantities for each product item (no sales considered)'
 
     def add_arguments(self, parser):
         parser.add_argument('--dry-run', action='store_true',
             help='Show what would be updated without making changes', )
 
     def handle(self, *args, **options):
-        # dry_run = options['dry_run']
-        #
-        # if dry_run:
-        #     self.stdout.write(
-        #         self.style.WARNING('DRY RUN MODE - No changes will be made'))
-        #
-        # # Get all PurchaseItem records
-        # purchase_items = PurchaseItem.objects.all()
-        # total_items = purchase_items.count()
-        #
-        # self.stdout.write(
-        #     f'Found {total_items} PurchaseItem records to update')
-        #
-        # updated_count = 0
-        # invoice_ids_to_recalculate = set()
-        #
-        # with transaction.atomic():
-        #     for item in purchase_items:
-        #         # Calculate shipping totals
-        #         old_shipping_total_usd = item.shipping_total_usd
-        #         old_shipping_total_aed = item.shipping_total_aed
-        #
-        #         new_shipping_total_usd = item.shipping_per_unit_usd * item.qty
-        #         new_shipping_total_aed = item.shipping_per_unit_aed * item.qty
-        #
-        #         # Check if update is needed
-        #         if (
-        #                 old_shipping_total_usd != new_shipping_total_usd or old_shipping_total_aed != new_shipping_total_aed):
-        #
-        #             if not dry_run:
-        #                 # Update the fields
-        #                 item.shipping_total_usd = new_shipping_total_usd
-        #                 item.shipping_total_aed = new_shipping_total_aed
-        #
-        #                 # Recalculate amount including shipping
-        #                 item.amount_usd = (
-        #                                               item.unit_price_usd * item.qty) + new_shipping_total_usd
-        #                 item.amount_aed = (
-        #                                               item.unit_price_aed * item.qty) + new_shipping_total_aed
-        #
-        #                 item.save(update_fields=['shipping_total_usd',
-        #                                          'shipping_total_aed',
-        #                                          'amount_usd', 'amount_aed'])
-        #
-        #                 # Track invoice for recalculation
-        #                 if item.invoice:
-        #                     invoice_ids_to_recalculate.add(item.invoice.id)
-        #
-        #             updated_count += 1
-        #
-        #             self.stdout.write(f'Item ID {item.id}: '
-        #                               f'USD {old_shipping_total_usd} -> {new_shipping_total_usd}, '
-        #                               f'AED {old_shipping_total_aed} -> {new_shipping_total_aed}')
-        #
-        #     # Recalculate invoice totals for affected invoices
-        #     if not dry_run and invoice_ids_to_recalculate:
-        #         self.stdout.write(
-        #             f'Recalculating totals for {len(invoice_ids_to_recalculate)} invoices...')
-        #
-        #         for invoice_id in invoice_ids_to_recalculate:
-        #             try:
-        #                 invoice = PurchaseInvoice.objects.get(id=invoice_id)
-        #                 invoice.calculate_totals()
-        #                 self.stdout.write(
-        #                     f'Updated invoice {invoice.invoice_no}')
-        #             except PurchaseInvoice.DoesNotExist:
-        #                 self.stdout.write(self.style.WARNING(
-        #                     f'Invoice with ID {invoice_id} not found'))
-        #
-        # if dry_run:
-        #     self.stdout.write(self.style.SUCCESS(
-        #         f'DRY RUN COMPLETE: {updated_count} items would be updated'))
-        # else:
-        #     self.stdout.write(self.style.SUCCESS(
-        #         f'Successfully updated {updated_count} PurchaseItem records and recalculated {len(invoice_ids_to_recalculate)} invoice totals'))
-        print("12234455")
-
+        dry_run = options.get('dry_run', False)
+        # Get all product_item ids from PurchaseItem
+        product_item_ids = PurchaseItem.objects.values_list('item_id', flat=True).distinct()
+        for product_item_id in product_item_ids:
+            total_qty = PurchaseItem.objects.filter(item_id=product_item_id).aggregate(total=models.Sum('qty'))['total'] or 0
+            stock, created = Stock.objects.get_or_create(product_item_id=product_item_id)
+            if dry_run:
+                self.stdout.write(f"[DRY RUN] Would set stock for ProductItem {product_item_id} to {total_qty}")
+            else:
+                stock.quantity = total_qty
+                stock.save()
+                self.stdout.write(f"Set stock for ProductItem {product_item_id} to {total_qty}")
 
 if __name__ == "__main__":
     command = Command()

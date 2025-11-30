@@ -201,11 +201,20 @@ class PurchaseItem(models.Model):
 
         # Calculate VAT per unit
         vat_rate = self.tax.vat_percent if self.tax else Decimal('0')
-        base_usd = self.total_price_usd + self.shipping_total_usd + self.custom_duty_usd_total
-        base_aed = self.total_price_aed + self.shipping_total_aed + self.custom_duty_aed_total
+        # Ensure all operands are Decimal for base_usd and base_aed
+        base_usd = (Decimal(str(self.total_price_usd)) +
+                    Decimal(str(self.shipping_total_usd)) +
+                    Decimal(str(self.custom_duty_usd_total)))
+        base_aed = (Decimal(str(self.total_price_aed)) +
+                    Decimal(str(self.shipping_total_aed)) +
+                    Decimal(str(self.custom_duty_aed_total)))
 
-        self.vat_per_unit_usd = ((self.unit_price_usd or Decimal('0')) + (self.shipping_per_unit_usd or Decimal('0')) + (self.custom_duty_usd_enter or Decimal('0'))) * (vat_rate / 100)
-        self.vat_per_unit_aed = ((self.unit_price_aed or Decimal('0')) + (self.shipping_per_unit_aed or Decimal('0')) + (self.custom_duty_aed_enter or Decimal('0'))) * (vat_rate / 100)
+        self.vat_per_unit_usd = ((Decimal(str(self.unit_price_usd)) +
+                                  Decimal(str(self.shipping_per_unit_usd)) +
+                                  Decimal(str(self.custom_duty_usd_enter))) * (vat_rate / 100))
+        self.vat_per_unit_aed = ((Decimal(str(self.unit_price_aed)) +
+                                  Decimal(str(self.shipping_per_unit_aed)) +
+                                  Decimal(str(self.custom_duty_aed_enter))) * (vat_rate / 100))
 
         self.vat_total_usd = self.vat_per_unit_usd * self.qty
         self.vat_total_aed = self.vat_per_unit_aed * self.qty
