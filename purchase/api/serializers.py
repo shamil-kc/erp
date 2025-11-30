@@ -48,6 +48,7 @@ class PurchaseInvoiceSerializer(serializers.ModelSerializer):
 
 
 class PurchaseItemNestedSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
     item = serializers.IntegerField()
     qty = serializers.IntegerField()
     unit_price_usd = serializers.DecimalField(max_digits=12, decimal_places=2)
@@ -185,7 +186,10 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
             if items_data is not None:
                 # Map existing PurchaseItems by their id
                 existing_items = {item.id: item for item in instance.purchase_items.all()}
-                sent_item_ids = [item.get('id') for item in items_data if item.get('id')]
+                sent_item_ids = [item.get("id") for item in items_data if item.get("id")]
+
+                print(existing_items, "existing_items")
+                print(sent_item_ids, "sent_item_ids")
 
                 # Delete removed items
                 for item_id in existing_items:
