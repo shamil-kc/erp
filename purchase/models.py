@@ -219,18 +219,20 @@ class PurchaseItem(models.Model):
         if not is_new:
             try:
                 previous = PurchaseItem.objects.get(pk=self.pk)
-                qty = previous.qty
-                previous_qty = qty
+                previous_qty = previous.qty
             except PurchaseItem.DoesNotExist:
                 previous_qty = 0
 
+        # Save the item first
         super().save(*args, **kwargs)
 
         # Update stock based on quantity changes
         stock, _ = Stock.objects.get_or_create(product_item=self.item)
         if is_new:
+            # Only add the new qty
             stock.quantity += self.qty
         else:
+            # Only add the difference
             qty_difference = self.qty - previous_qty
             stock.quantity += qty_difference
         stock.save()
