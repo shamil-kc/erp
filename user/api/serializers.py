@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    role = serializers.ChoiceField(choices=['Master-Admin','Admin', 'Member', 'Sale'], write_only=True)
+    role = serializers.ChoiceField(choices=['Master-Admin','Admin', 'Member', 'Sales'], write_only=True)
 
     class Meta:
         model = User
