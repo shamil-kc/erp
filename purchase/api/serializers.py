@@ -183,24 +183,21 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
             instance.save()
 
             if items_data is not None:
-                # Use correct related_name 'purchase_items'
-                existing_item_ids = [item.id for item in
-                                     instance.purchase_items.all()]
-                sent_item_ids = [item.get('id') for item in items_data if
-                                 item.get('id')]
+                # Map existing PurchaseItems by their id
+                existing_items = {item.id: item for item in instance.purchase_items.all()}
+                sent_item_ids = [item.get('id') for item in items_data if item.get('id')]
 
                 # Delete removed items
-                for item_id in existing_item_ids:
+                for item_id in existing_items:
                     if item_id not in sent_item_ids:
-                        PurchaseItem.objects.filter(id=item_id).delete()
+                        existing_items[item_id].delete()
 
                 # Create or update items
                 for item_data in items_data:
                     item_id = item_data.get('id', None)
-                    if item_id:
-                        # Update existing item
-                        item_instance = PurchaseItem.objects.get(id=item_id,
-                                                                 invoice=instance)
+                    if item_id and item_id in existing_items:
+                        # Update existing item by PurchaseItem id
+                        item_instance = existing_items[item_id]
                         for attr, value in item_data.items():
                             if attr == 'id':
                                 continue
