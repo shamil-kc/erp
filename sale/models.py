@@ -241,10 +241,10 @@ class SaleItem(models.Model):
     def total_amount_aed(self):
         return (self.sale_price_aed * self.qty) + self.shipping_aed
 
+# Remove old SaleReturnItem model and add new models for multi-item returns
+
 class SaleReturnItem(models.Model):
-    sale_item = models.ForeignKey(SaleItem, on_delete=models.CASCADE, related_name='return_items')
-    sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='return_items')
-    qty = models.PositiveIntegerField()
+    sale_invoice = models.ForeignKey('SaleInvoice', on_delete=models.CASCADE, related_name='return_items')
     returned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
     return_date = models.DateTimeField(default=timezone.now)
     remarks = models.TextField(blank=True, null=True)
@@ -254,17 +254,52 @@ class SaleReturnItem(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         super().save(*args, **kwargs)
-        if is_new:
-            # Update stock for the returned item
-            from inventory.models import Stock
-            stock, _ = Stock.objects.get_or_create(product_item=self.sale_item.item)
-            stock.quantity += self.qty
-            stock.save()
+        # Stock update handled in entry save
 
-            # Decrease sold_qty in related PurchaseItem when items are returned
-            if self.sale_item.purchase_item:
+    def delete(self, *args, **kwargs):
+        from inventory.models import Stock
+        for entry in self.entries.all():
+            stock = Stock.objects.filter(product_item=entry.sale_item.item).first()
+            if stock:
+                stock.quantity -= entry.qty
+                stock.save()
+            # Increase sold_qty in related PurchaseItem when return record is deleted
+            if entry.sale_item.purchase_item:
+                entry.sale_item.purchase_item.sold_qty += entry.qty
+                entry.sale_item.purchase_item.save()
+        self.entries.all().delete()
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"Return for Invoice {self.sale_invoice.id} ({self.entries.count()} items)"
+
+class SaleReturnItemEntry(models.Model):
+    sale_return = models.ForeignKey(SaleReturnItem, on_delete=models.CASCADE, related_name='entries')
+    sale_item = models.ForeignKey('SaleItem', on_delete=models.CASCADE)
+    qty = models.PositiveIntegerField()
+    remarks = models.TextField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        previous_qty = 0
+        if not is_new:
+            previous = SaleReturnItemEntry.objects.get(pk=self.pk)
+            previous_qty = previous.qty
+        super().save(*args, **kwargs)
+        from inventory.models import Stock
+        stock, _ = Stock.objects.get_or_create(product_item=self.sale_item.item)
+        if is_new:
+            stock.quantity += self.qty
+        else:
+            stock.quantity += (self.qty - previous_qty)
+        stock.save()
+        # Decrease sold_qty in related PurchaseItem when items are returned
+        if self.sale_item.purchase_item:
+            if is_new:
                 self.sale_item.purchase_item.sold_qty -= self.qty
-                self.sale_item.purchase_item.save()
+            else:
+                self.sale_item.purchase_item.sold_qty -= (self.qty - previous_qty)
+            self.sale_item.purchase_item.save()
 
     def delete(self, *args, **kwargs):
         from inventory.models import Stock
@@ -272,17 +307,14 @@ class SaleReturnItem(models.Model):
         if stock:
             stock.quantity -= self.qty
             stock.save()
-
         # Increase sold_qty in related PurchaseItem when return record is deleted
         if self.sale_item.purchase_item:
             self.sale_item.purchase_item.sold_qty += self.qty
             self.sale_item.purchase_item.save()
-
         super().delete(*args, **kwargs)
 
     def __str__(self):
-        return f"Return {self.qty}x {self.sale_item.item} from SaleItem {self.sale_item.id}"
-
+        return f"{self.qty}x {self.sale_item.item} (Return #{self.sale_return.id})"
 
 class DeliveryNote(models.Model):
     DO_id = models.CharField(max_length=50, unique=True, blank=True)

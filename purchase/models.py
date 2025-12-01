@@ -258,10 +258,10 @@ class PurchaseItem(models.Model):
         return f"{self.qty}x {self.item} @ {self.unit_price_usd}" if self.invoice else "Uninvoiced Purchase Item"
 
 
+# Remove old PurchaseReturnItem model and add new models for multi-item returns
+
 class PurchaseReturnItem(models.Model):
-    purchase_item = models.ForeignKey('PurchaseItem', on_delete=models.CASCADE, related_name='return_items')
     purchase_invoice = models.ForeignKey('PurchaseInvoice', on_delete=models.CASCADE, related_name='return_items')
-    qty = models.PositiveIntegerField()
     returned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
     return_date = models.DateTimeField(default=timezone.now)
     remarks = models.TextField(blank=True, null=True)
@@ -271,11 +271,41 @@ class PurchaseReturnItem(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         super().save(*args, **kwargs)
+        # Stock update handled in entry save
+
+    def delete(self, *args, **kwargs):
+        # Revert stock for all returned items
+        for entry in self.entries.all():
+            stock = Stock.objects.filter(product_item=entry.purchase_item.item).first()
+            if stock:
+                stock.quantity += entry.qty
+                stock.save()
+        self.entries.all().delete()
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"Return for Invoice {self.purchase_invoice.id} ({self.entries.count()} items)"
+
+class PurchaseReturnItemEntry(models.Model):
+    purchase_return = models.ForeignKey(PurchaseReturnItem, on_delete=models.CASCADE, related_name='entries')
+    purchase_item = models.ForeignKey('PurchaseItem', on_delete=models.CASCADE)
+    qty = models.PositiveIntegerField()
+    remarks = models.TextField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        previous_qty = 0
+        if not is_new:
+            previous = PurchaseReturnItemEntry.objects.get(pk=self.pk)
+            previous_qty = previous.qty
+        super().save(*args, **kwargs)
+        # Update stock for the returned item
+        stock, _ = Stock.objects.get_or_create(product_item=self.purchase_item.item)
         if is_new:
-            # Update stock for the returned item
-            stock, _ = Stock.objects.get_or_create(product_item=self.purchase_item.item)
             stock.quantity -= self.qty
-            stock.save()
+        else:
+            stock.quantity -= (self.qty - previous_qty)
+        stock.save()
 
     def delete(self, *args, **kwargs):
         stock = Stock.objects.filter(product_item=self.purchase_item.item).first()
@@ -285,4 +315,4 @@ class PurchaseReturnItem(models.Model):
         super().delete(*args, **kwargs)
 
     def __str__(self):
-        return f"Return {self.qty}x {self.purchase_item.item} from PurchaseItem {self.purchase_item.id}"
+        return f"{self.qty}x {self.purchase_item.item} (Return #{self.purchase_return.id})"

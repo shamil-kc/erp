@@ -322,17 +322,70 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
-class SaleReturnItemSerializer(serializers.ModelSerializer):
+class SaleReturnItemEntrySerializer(serializers.ModelSerializer):
     sale_item = serializers.PrimaryKeyRelatedField(queryset=SaleItem.objects.all())
+    qty = serializers.IntegerField()
+    remarks = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = SaleReturnItemEntry
+        fields = ['id', 'sale_item', 'qty', 'remarks']
+
+class SaleReturnItemSerializer(serializers.ModelSerializer):
+    items = SaleReturnItemEntrySerializer(many=True, write_only=True)
+    sale_invoice = serializers.PrimaryKeyRelatedField(queryset=SaleInvoice.objects.all())
+    returned_by = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = SaleReturnItem
-        fields = ['id', 'sale_item', 'sale_invoice','qty', 'returned_by',
+        fields = ['id', 'sale_invoice', 'items', 'returned_by',
                   'return_date', 'remarks', 'created_at']
 
     def create(self, validated_data):
+        items_data = validated_data.pop('items', [])
         validated_data['returned_by'] = self.context['request'].user
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        for entry in items_data:
+            SaleReturnItemEntry.objects.create(
+                sale_return=instance,
+                sale_item=entry['sale_item'],
+                qty=entry['qty'],
+                remarks=entry.get('remarks', '')
+            )
+        return instance
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if items_data is not None:
+            sent_entry_ids = [entry.get('id') for entry in items_data if entry.get('id')]
+            for entry in instance.entries.all():
+                if entry.id not in sent_entry_ids:
+                    entry.delete()
+            for entry_data in items_data:
+                entry_id = entry_data.get('id')
+                if entry_id:
+                    entry_instance = instance.entries.get(id=entry_id)
+                    for attr, value in entry_data.items():
+                        if attr == 'id':
+                            continue
+                        setattr(entry_instance, attr, value)
+                    entry_instance.save()
+                else:
+                    SaleReturnItemEntry.objects.create(
+                        sale_return=instance,
+                        sale_item=entry_data['sale_item'],
+                        qty=entry_data['qty'],
+                        remarks=entry_data.get('remarks', '')
+                    )
+        return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['items'] = SaleReturnItemEntrySerializer(instance.entries.all(), many=True).data
+        return data
 
 
 class DeliveryNoteSerializer(serializers.ModelSerializer):

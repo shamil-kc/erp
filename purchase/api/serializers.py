@@ -264,14 +264,69 @@ class PurchaseItemUpdateSerializer(serializers.ModelSerializer):
 
 from purchase.models import PurchaseReturnItem, PurchaseItem
 
-class PurchaseReturnItemSerializer(serializers.ModelSerializer):
+class PurchaseReturnItemEntrySerializer(serializers.ModelSerializer):
     purchase_item = serializers.PrimaryKeyRelatedField(queryset=PurchaseItem.objects.all())
+    qty = serializers.IntegerField()
+    remarks = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = PurchaseReturnItemEntry
+        fields = ['id', 'purchase_item', 'qty', 'remarks']
+
+class PurchaseReturnItemSerializer(serializers.ModelSerializer):
+    items = PurchaseReturnItemEntrySerializer(many=True, write_only=True)
+    purchase_invoice = serializers.PrimaryKeyRelatedField(queryset=PurchaseInvoice.objects.all())
+    returned_by = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = PurchaseReturnItem
-        fields = ['id', 'purchase_item', 'purchase_invoice', 'qty', 'returned_by',
+        fields = ['id', 'purchase_invoice', 'items', 'returned_by',
                   'return_date', 'remarks', 'created_at']
 
     def create(self, validated_data):
+        items_data = validated_data.pop('items', [])
         validated_data['returned_by'] = self.context['request'].user
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        for entry in items_data:
+            PurchaseReturnItemEntry.objects.create(
+                purchase_return=instance,
+                purchase_item=entry['purchase_item'],
+                qty=entry['qty'],
+                remarks=entry.get('remarks', '')
+            )
+        return instance
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if items_data is not None:
+            # Remove entries not in update
+            sent_entry_ids = [entry.get('id') for entry in items_data if entry.get('id')]
+            for entry in instance.entries.all():
+                if entry.id not in sent_entry_ids:
+                    entry.delete()
+            # Update or create entries
+            for entry_data in items_data:
+                entry_id = entry_data.get('id')
+                if entry_id:
+                    entry_instance = instance.entries.get(id=entry_id)
+                    for attr, value in entry_data.items():
+                        if attr == 'id':
+                            continue
+                        setattr(entry_instance, attr, value)
+                    entry_instance.save()
+                else:
+                    PurchaseReturnItemEntry.objects.create(
+                        purchase_return=instance,
+                        purchase_item=entry_data['purchase_item'],
+                        qty=entry_data['qty'],
+                        remarks=entry_data.get('remarks', '')
+                    )
+        return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['items'] = PurchaseReturnItemEntrySerializer(instance.entries.all(), many=True).data
+        return data

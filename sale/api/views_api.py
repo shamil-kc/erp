@@ -153,6 +153,9 @@ class SaleReturnItemViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(returned_by=self.request.user)
 
+    def perform_update(self, serializer):
+        serializer.save()
+
 
 class DeliveryNoteViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DeliveryNote.objects.all().order_by('-created_at')

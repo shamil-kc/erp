@@ -76,3 +76,6 @@ class PurchaseReturnItemViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(returned_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save()

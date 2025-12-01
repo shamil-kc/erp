@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SaleInvoice, SaleItem, DeliveryNote
+from .models import SaleInvoice, SaleItem, DeliveryNote, SaleReturnItem, SaleReturnItemEntry
 from common.models import ServiceFee
 
 
@@ -56,3 +56,18 @@ class DeliveryNoteAdmin(admin.ModelAdmin):
     """
     list_display = ('id', 'sale_invoice', 'created_at', 'created_by')
     search_fields = ('sale_invoice__invoice_no',)
+
+class SaleReturnItemEntryInline(admin.TabularInline):
+    model = SaleReturnItemEntry
+    extra = 0
+    autocomplete_fields = ['sale_item']
+    fields = ('sale_item', 'qty', 'remarks')
+    readonly_fields = ()
+
+@admin.register(SaleReturnItem)
+class SaleReturnItemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'sale_invoice', 'returned_by', 'return_date', 'remarks', 'created_at')
+    search_fields = ('sale_invoice__invoice_no', 'returned_by__username')
+    date_hierarchy = 'return_date'
+    inlines = [SaleReturnItemEntryInline]
+    autocomplete_fields = ['sale_invoice', 'returned_by']
