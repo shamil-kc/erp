@@ -58,6 +58,7 @@ class PurchaseInvoice(models.Model):
     has_tax = models.BooleanField(default=True)
     has_custom_duty = models.BooleanField(default=False)
     extra_charges = GenericRelation('common.ExtraCharges', related_query_name='purchase_invoices')
+    is_payment_started = models.BooleanField(default=False)  # <-- Add this field
 
     def __str__(self):
         return f"Invoice {self.invoice_no}"

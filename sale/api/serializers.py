@@ -76,6 +76,7 @@ class SaleInvoiceSerializer(serializers.ModelSerializer):
     has_tax = serializers.BooleanField(required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
+    is_payment_started = serializers.BooleanField(required=False)  # <-- Add this field
     # Fix: Use .all() for GenericRelation
     extra_charges = serializers.SerializerMethodField()
 
@@ -101,6 +102,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     biller_name = serializers.CharField(required=False, allow_blank=True)
+    is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
 
     class Meta:
         model = SaleInvoice
@@ -121,7 +123,8 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'biller_name',
             'purchase_order_number',
             'invoice_no',
-            'extra_charges'
+            'extra_charges',
+            'is_payment_started',  # <-- Add here
         ]
 
     def validate(self, data):
@@ -207,6 +210,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(choices=SaleInvoice.STATUS_CHOICES, required=False)
     is_sales_approved = serializers.BooleanField(required=False)
     biller_name = serializers.CharField(required=False, allow_blank=True)
+    is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
 
     class Meta:
         model = SaleInvoice
@@ -214,7 +218,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                   'discount_aed', 'items','has_service_fee', 'service_fee',
                   'has_commission', 'commission', 'has_tax', 'status',
                   'is_sales_approved', 'biller_name', 'purchase_order_number',
-                  'invoice_no', 'extra_charges']
+                  'invoice_no', 'extra_charges', 'is_payment_started']  # <-- Add here
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
@@ -224,11 +228,13 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
         commission_data = validated_data.pop('commission', None)
         has_tax = validated_data.pop('has_tax', instance.has_tax)
         extra_charges_data = validated_data.pop('extra_charges', None)
+        is_payment_started = validated_data.pop('is_payment_started', False)
 
         with transaction.atomic():
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
             instance.has_tax = has_tax
+            instance.is_payment_started = is_payment_started  # <-- Update this field
             instance.save()
 
             if items_data is not None:

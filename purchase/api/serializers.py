@@ -42,6 +42,7 @@ class PurchaseInvoiceSerializer(serializers.ModelSerializer):
     party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party', write_only=True)
     has_tax = serializers.BooleanField(required=False)  # Add this field
     extra_charges = ExtraChargesSerializer(many=True, read_only=True)
+    is_payment_started = serializers.BooleanField(required=False)  # <-- Add this field
     class Meta:
         model = PurchaseInvoice
         fields = '__all__'
@@ -82,6 +83,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     currency_rate = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     status = serializers.ChoiceField(choices=PurchaseInvoice.STATUS_CHOICES, required=False)
     extra_charges = ExtraChargesSerializer(many=True, write_only=True, required=False)
+    is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
 
     def validate(self, data):
         payments = data.get('payments', [])
@@ -102,7 +104,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax',
                   'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
-                  'currency', 'currency_rate', 'status', 'extra_charges']
+                  'currency', 'currency_rate', 'status', 'extra_charges', 'is_payment_started']  # <-- Add here
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
@@ -165,12 +167,13 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(choices=PurchaseInvoice.STATUS_CHOICES,
                                      required=False)
     extra_charges = ExtraChargesSerializer(many=True, write_only=True, required=False)
+    is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
     class Meta:
         model = PurchaseInvoice
         fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
                   'items', 'discount_usd', 'discount_aed', 'has_tax', 'status',
                   'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
-                  'currency', 'currency_rate', 'status', 'extra_charges']
+                  'currency', 'currency_rate', 'status', 'extra_charges', 'is_payment_started']  # <-- Add here
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
