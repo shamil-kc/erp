@@ -8,8 +8,8 @@ from collections import defaultdict
 from django.db.models import Q
 from products.api.serializers import ProductItemSerializer
 from products.models import ProductItem
-from purchase.models import PurchaseInvoice, PurchaseItem
-from sale.models import SaleInvoice, SaleItem
+from purchase.models import PurchaseInvoice, PurchaseItem, PurchaseReturnItemEntry
+from sale.models import SaleInvoice, SaleItem, SaleReturnItemEntry
 from common.models import Expense
 from employee.models import SalaryEntry
 from inventory.models import Stock
@@ -379,3 +379,99 @@ class TaxSummaryAPIView(APIView):
             }
         }
         return Response(data)
+
+
+class ProductWiseReportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        product_id = request.query_params.get('product_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        if not product_id:
+            return Response({"error": "product_id is required"}, status=400)
+
+        # Purchases
+        purchase_items = PurchaseItem.objects.filter(
+            item_id=product_id,
+            invoice__status=PurchaseInvoice.STATUS_APPROVED
+        )
+        if start_date:
+            purchase_items = purchase_items.filter(invoice__purchase_date__gte=start_date)
+        if end_date:
+            purchase_items = purchase_items.filter(invoice__purchase_date__lte=end_date)
+
+        purchases = [{
+            "invoice_no": pi.invoice.invoice_no,
+            "purchase_date": pi.invoice.purchase_date,
+            "qty": pi.qty,
+            "unit_price_usd": float(pi.unit_price_usd),
+            "unit_price_aed": float(pi.unit_price_aed),
+            "total_price_usd": float(pi.total_price_usd),
+            "total_price_aed": float(pi.total_price_aed),
+        } for pi in purchase_items]
+
+        # Sales
+        sale_items = SaleItem.objects.filter(
+            item_id=product_id,
+            invoice__status=SaleInvoice.STATUS_APPROVED
+        )
+        if start_date:
+            sale_items = sale_items.filter(invoice__sale_date__gte=start_date)
+        if end_date:
+            sale_items = sale_items.filter(invoice__sale_date__lte=end_date)
+
+        sales = [{
+            "invoice_no": si.invoice.invoice_no,
+            "sale_date": si.invoice.sale_date,
+            "qty": si.qty,
+            "sale_price_usd": float(si.sale_price_usd),
+            "sale_price_aed": float(si.sale_price_aed),
+            "total_price_usd": float(si.total_price_usd),
+            "total_price_aed": float(si.total_price_aed),
+        } for si in sale_items]
+
+        # Sale Returns
+        sale_return_entries = SaleReturnItemEntry.objects.filter(
+            sale_item__item_id=product_id,
+            sale_return__sale_invoice__status=SaleInvoice.STATUS_APPROVED
+        )
+        if start_date:
+            sale_return_entries = sale_return_entries.filter(sale_return__return_date__gte=start_date)
+        if end_date:
+            sale_return_entries = sale_return_entries.filter(sale_return__return_date__lte=end_date)
+
+        sale_returns = [{
+            "return_id": sre.sale_return.id,
+            "return_date": sre.sale_return.return_date,
+            "invoice_no": sre.sale_return.sale_invoice.invoice_no,
+            "qty": sre.qty,
+            "remarks": sre.remarks,
+        } for sre in sale_return_entries]
+
+        # Purchase Returns
+        purchase_return_entries = PurchaseReturnItemEntry.objects.filter(
+            purchase_item__item_id=product_id,
+            purchase_return__purchase_invoice__status=PurchaseInvoice.STATUS_APPROVED
+        )
+        if start_date:
+            purchase_return_entries = purchase_return_entries.filter(purchase_return__return_date__gte=start_date)
+        if end_date:
+            purchase_return_entries = purchase_return_entries.filter(purchase_return__return_date__lte=end_date)
+
+        purchase_returns = [{
+            "return_id": pre.purchase_return.id,
+            "return_date": pre.purchase_return.return_date,
+            "invoice_no": pre.purchase_return.purchase_invoice.invoice_no,
+            "qty": pre.qty,
+            "remarks": pre.remarks,
+        } for pre in purchase_return_entries]
+
+        return Response({
+            "product_id": product_id,
+            "purchases": purchases,
+            "sales": sales,
+            "sale_returns": sale_returns,
+            "purchase_returns": purchase_returns,
+        })
