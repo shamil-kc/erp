@@ -80,6 +80,7 @@ class SaleInvoiceSerializer(serializers.ModelSerializer):
     # Fix: Use .all() for GenericRelation
     extra_charges = serializers.SerializerMethodField()
     sale_note = serializers.CharField(required=False, allow_blank=True)
+    payment_method = serializers.CharField(required=False, allow_blank=True)  # <-- Added field
 
     class Meta:
         model = SaleInvoice
@@ -105,6 +106,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
     biller_name = serializers.CharField(required=False, allow_blank=True)
     is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
     sale_note = serializers.CharField(required=False, allow_blank=True)
+    payment_method = serializers.CharField(required=False, allow_blank=True)  # <-- Added field
 
     class Meta:
         model = SaleInvoice
@@ -128,6 +130,7 @@ class SaleInvoiceCreateSerializer(serializers.ModelSerializer):
             'extra_charges',
             'is_payment_started',  # <-- Add here
             'sale_note',  # <-- Add here
+            'payment_method',  # <-- Add here
         ]
 
     def validate(self, data):
@@ -215,6 +218,7 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
     biller_name = serializers.CharField(required=False, allow_blank=True)
     is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
     sale_note = serializers.CharField(required=False, allow_blank=True)
+    payment_method = serializers.CharField(required=False, allow_blank=True)  # <-- Added field
 
     class Meta:
         model = SaleInvoice
@@ -223,7 +227,9 @@ class SaleInvoiceUpdateSerializer(serializers.ModelSerializer):
                   'has_commission', 'commission', 'has_tax', 'status',
                   'is_sales_approved', 'biller_name', 'purchase_order_number',
                   'invoice_no', 'extra_charges', 'is_payment_started',
-                  'sale_note']  # <-- Add here
+                  'sale_note',  # <-- Add here
+                  'payment_method',  # <-- Add here
+        ]
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)

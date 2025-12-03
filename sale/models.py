@@ -66,6 +66,7 @@ class SaleInvoice(models.Model):
     extra_charges = GenericRelation('common.ExtraCharges', related_query_name='sale_invoices')
     is_payment_started = models.BooleanField(default=False)
     sale_note = models.TextField(blank=True, null=True)
+    payment_method = models.CharField(max_length=100, blank=True, null=True)
 
     def calculate_totals(self):
         from common.models import Tax
