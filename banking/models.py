@@ -22,7 +22,8 @@ class PaymentEntry(models.Model):
     party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True,
                              help_text='Customer or Supplier for this payment')
 
-    cheque_number = models.CharField(max_length=100, null=True, blank=True)  # <-- Added field
+    cheque_number = models.CharField(max_length=100, null=True, blank=True)
+    is_cheque_cleared = models.BooleanField(default=False)
 
     payment_date = models.DateField(null=True, blank=True, help_text='Date of payment')  # <-- New field
 

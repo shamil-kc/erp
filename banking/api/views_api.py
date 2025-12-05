@@ -114,27 +114,53 @@ class CheckApproveAPIView(APIView):
         cash_account = CashAccount.objects.filter(type='main').first()
         if not cash_account:
             return Response({"error": "No main cash account found."}, status=status.HTTP_404_NOT_FOUND)
-        check_amount = cash_account.check_cash
 
+        payment_entry_id = request.data.get('payment_entry_id')
         amount = request.data.get('amount')
+        action = request.data.get('action')  # 'credit' or 'debit'
+
+        if not payment_entry_id:
+            return Response({"error": "payment_entry_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if action not in ['credit', 'debit']:
+            return Response({"error": "action must be 'credit' or 'debit'."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             amount = Decimal(str(amount))
         except (TypeError, ValueError):
             return Response({"error": "Valid 'amount' is required."}, status=status.HTTP_400_BAD_REQUEST)
-
         if amount <= 0:
             return Response({"error": "Amount must be positive."}, status=status.HTTP_400_BAD_REQUEST)
-        if amount > check_amount:
-            return Response({"error": "Amount exceeds available check cash."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Move specified amount from check to bank
-        cash_account.check_cash -= amount
-        cash_account.cash_in_bank += amount
-        cash_account.save()
+        try:
+            payment_entry = PaymentEntry.objects.get(id=payment_entry_id)
+        except PaymentEntry.DoesNotExist:
+            return Response({"error": "PaymentEntry not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if payment_entry.is_cheque_cleared:
+            return Response({"error": "Cheque already cleared for this payment entry."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            if action == 'credit':
+                # Transfer from check to bank
+                if amount > cash_account.check_cash:
+                    return Response({"error": "Amount exceeds available check cash."}, status=status.HTTP_400_BAD_REQUEST)
+                cash_account.check_cash -= amount
+                cash_account.cash_in_bank += amount
+            elif action == 'debit':
+                # Debit from bank
+                if amount > cash_account.cash_in_bank:
+                    return Response({"error": "Amount exceeds available bank balance."}, status=status.HTTP_400_BAD_REQUEST)
+                cash_account.cash_in_bank -= amount
+            cash_account.save()
+            payment_entry.is_cheque_cleared = True
+            payment_entry.save()
+
         return Response({
             "cash_in_hand": float(cash_account.cash_in_hand),
             "cash_in_bank": float(cash_account.cash_in_bank),
             "check_cash": float(cash_account.check_cash),
             "moved_amount": float(amount),
             "updated_at": cash_account.updated_at,
+            "payment_entry_id": payment_entry.id,
+            "is_cheque_cleared": payment_entry.is_cheque_cleared,
         }, status=status.HTTP_200_OK)

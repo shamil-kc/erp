@@ -8,7 +8,11 @@ class PaymentEntryFilter(django_filters.FilterSet):
     payment_type = django_filters.CharFilter(field_name='payment_type', lookup_expr='iexact')
     created_at__gte = django_filters.DateTimeFilter(field_name='created_at', lookup_expr='gte')
     created_at__lte = django_filters.DateTimeFilter(field_name='created_at', lookup_expr='lte')
+    is_cheque_cleared = django_filters.BooleanFilter(field_name='is_cheque_cleared')
 
     class Meta:
         model = PaymentEntry
-        fields = ['invoice_type', 'invoice_id', 'payment_type', 'created_at__gte', 'created_at__lte']
+        fields = [
+            'invoice_type', 'invoice_id', 'payment_type',
+            'created_at__gte', 'created_at__lte', 'is_cheque_cleared'
+        ]
