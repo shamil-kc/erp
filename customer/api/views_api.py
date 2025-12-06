@@ -10,6 +10,7 @@ from purchase.api.serializers import PurchaseInvoiceSerializer
 from banking.api.serializers import PaymentEntrySerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from .filters import PartyFilter
 
 
 class PartyViewSet(viewsets.ModelViewSet):
@@ -17,7 +18,7 @@ class PartyViewSet(viewsets.ModelViewSet):
     serializer_class = PartySerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['type']
+    filterset_class = PartyFilter
 
     @action(detail=True, methods=['get'], url_path='transactions')
     def customer_transactions(self, request, pk=None):
