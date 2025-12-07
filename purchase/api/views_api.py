@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from django.forms.models import model_to_dict
 from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import PurchaseInvoiceFilter, PurchaseItemFilter
+from .filters import PurchaseInvoiceFilter, PurchaseItemFilter, PurchaseReturnItemFilter
 from django.db import transaction
 from rest_framework import permissions
 from base.utils import log_activity
@@ -73,6 +73,8 @@ class PurchaseReturnItemViewSet(viewsets.ModelViewSet):
     queryset = PurchaseReturnItem.objects.all().order_by('-return_date')
     serializer_class = PurchaseReturnItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = PurchaseReturnItemFilter
 
     def perform_create(self, serializer):
         serializer.save(returned_by=self.request.user)

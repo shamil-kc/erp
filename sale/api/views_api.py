@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from django.forms.models import model_to_dict
 from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import SaleInvoiceFilter
+from .filters import SaleInvoiceFilter, SaleReturnItemFilter
 from decimal import Decimal
 from django.db import transaction
 from rest_framework import permissions
@@ -149,6 +149,8 @@ class SaleReturnItemViewSet(viewsets.ModelViewSet):
     queryset = SaleReturnItem.objects.all().order_by('-return_date')
     serializer_class = SaleReturnItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = SaleReturnItemFilter
 
     def perform_create(self, serializer):
         serializer.save(returned_by=self.request.user)
