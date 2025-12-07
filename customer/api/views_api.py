@@ -36,17 +36,14 @@ class PartyViewSet(viewsets.ModelViewSet):
         total_sale_amount = sales.aggregate(total=models.Sum('total_with_vat_aed'))['total'] or 0
         total_purchase_amount = purchases.aggregate(total=models.Sum('total_with_vat_aed'))['total'] or 0
 
-        # Payments by type and totals
+        # Payments by type and totals (only totals, no entries)
         payment_types = payments.values_list('payment_type', flat=True).distinct()
         payments_by_type = {}
         total_payments = 0
         for p_type in payment_types:
             type_payments = payments.filter(payment_type=p_type)
             type_total = type_payments.aggregate(total=models.Sum('amount'))['total'] or 0
-            payments_by_type[p_type] = {
-                'entries': PaymentEntrySerializer(type_payments, many=True).data,
-                'total': type_total
-            }
+            payments_by_type[p_type] = type_total
             total_payments += type_total
 
         # Cheque due and paid (fixed field names)
@@ -69,7 +66,5 @@ class PartyViewSet(viewsets.ModelViewSet):
             'total_payments': total_payments,
             'balance_amount': balance_amount,
             'cheque_due_total': cheque_due_total,
-            'cheque_paid_total': cheque_paid_total,
-            'cheque_due': PaymentEntrySerializer(cheque_due, many=True).data,
-            'cheque_paid': PaymentEntrySerializer(cheque_paid, many=True).data,
+            'cheque_paid_total': cheque_paid_total
         })
