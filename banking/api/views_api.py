@@ -9,6 +9,8 @@ from rest_framework import permissions
 from .filters import PaymentEntryFilter
 from banking.models import CashAccount
 from django.utils import timezone
+from banking.models import PaymentEntry
+from django.db.models import Sum
 
 
 
@@ -93,6 +95,18 @@ class CashAccountAPIView(APIView):
     def get(self, request):
         response = {}
         cash_accounts = CashAccount.objects.all()
+        # Calculate pending cheques for sales and purchases
+        pending_sales_cheques = PaymentEntry.objects.filter(
+            payment_type='check',
+            invoice_type='sale',
+            is_cheque_cleared=False
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        pending_purchase_cheques = PaymentEntry.objects.filter(
+            payment_type='check',
+            invoice_type='purchase',
+            is_cheque_cleared=False
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
         if not cash_accounts:
             return Response({"error": "No cash account found."}, status=status.HTTP_404_NOT_FOUND)
         for cash_account in cash_accounts:
@@ -101,7 +115,9 @@ class CashAccountAPIView(APIView):
                 "cash_in_bank": float(cash_account.cash_in_bank),
                 "check_cash": float(cash_account.check_cash),
                 "updated_at": cash_account.updated_at,
-                "account_type": cash_account.type
+                "account_type": cash_account.type,
+                "pending_sales_cheques": float(pending_sales_cheques),
+                "pending_purchase_cheques": float(pending_purchase_cheques),
             }
             response[cash_account.type] = data
         return Response(response, status=status.HTTP_200_OK)
