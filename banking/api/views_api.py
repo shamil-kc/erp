@@ -141,15 +141,8 @@ class CheckApproveAPIView(APIView):
 
         with transaction.atomic():
             if action == 'credit':
-                # Transfer from check to bank
-                if amount > cash_account.check_cash:
-                    return Response({"error": "Amount exceeds available check cash."}, status=status.HTTP_400_BAD_REQUEST)
-                cash_account.check_cash -= amount
                 cash_account.cash_in_bank += amount
             elif action == 'debit':
-                # Debit from bank
-                if amount > cash_account.cash_in_bank:
-                    return Response({"error": "Amount exceeds available bank balance."}, status=status.HTTP_400_BAD_REQUEST)
                 cash_account.cash_in_bank -= amount
             cash_account.save()
             payment_entry.is_cheque_cleared = True
