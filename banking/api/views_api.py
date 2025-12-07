@@ -38,7 +38,7 @@ class PaymentEntryViewSet(viewsets.ModelViewSet):
                 elif instance.payment_type == 'bank':
                     cash_account.withdraw(instance.amount, 'cash_in_bank')
                 elif instance.payment_type == 'check':
-                    cash_account.withdraw(instance.amount, 'cash_in_check')
+                    cash_account.deposit(instance.amount, 'cash_in_check')
 
     def perform_update(self, serializer):
         old_instance = self.get_object()
@@ -141,8 +141,10 @@ class CheckApproveAPIView(APIView):
 
         with transaction.atomic():
             if action == 'credit':
+                cash_account.check_cash -= amount
                 cash_account.cash_in_bank += amount
             elif action == 'debit':
+                cash_account.check_cash -= amount
                 cash_account.cash_in_bank -= amount
             cash_account.save()
             payment_entry.is_cheque_cleared = True
