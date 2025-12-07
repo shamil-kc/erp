@@ -6,11 +6,13 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework.response import Response
 from rest_framework import permissions
-from .filters import PaymentEntryFilter
+from .filters import PaymentEntryFilter, CashAccountTransferFilter
 from banking.models import CashAccount
 from django.utils import timezone
 from banking.models import PaymentEntry
 from django.db.models import Sum
+from banking.models import CashAccountTransfer
+from .serializers import CashAccountTransferSerializer
 
 
 
@@ -111,6 +113,7 @@ class CashAccountAPIView(APIView):
             return Response({"error": "No cash account found."}, status=status.HTTP_404_NOT_FOUND)
         for cash_account in cash_accounts:
             data = {
+                "id": cash_account.id,
                 "cash_in_hand": float(cash_account.cash_in_hand),
                 "cash_in_bank": float(cash_account.cash_in_bank),
                 "check_cash": float(cash_account.check_cash),
@@ -175,3 +178,29 @@ class CheckApproveAPIView(APIView):
             "payment_entry_id": payment_entry.id,
             "is_cheque_cleared": payment_entry.is_cheque_cleared,
         }, status=status.HTTP_200_OK)
+
+
+class CashAccountTransferViewSet(viewsets.ModelViewSet):
+    queryset = CashAccountTransfer.objects.all().order_by('-created_at')
+    serializer_class = CashAccountTransferSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = CashAccountTransferFilter
+
+    def perform_create(self, serializer):
+        from_account = serializer.validated_data['from_account']
+        to_account = serializer.validated_data['to_account']
+        from_type = serializer.validated_data['from_type']
+        to_type = serializer.validated_data['to_type']
+        amount = serializer.validated_data['amount']
+
+        if from_account == to_account:
+            if from_type == to_type:
+                raise serializers.ValidationError("Cannot transfer to the same account and type.")
+            # Use transfer method for same account, which handles both sides
+            from_account.transfer(from_type, to_type, amount)
+        else:
+            # Different accounts: withdraw from source, deposit to target
+            from_account.withdraw(amount, from_type)
+            to_account.deposit(amount, to_type)
+        serializer.save(created_by=self.request.user)

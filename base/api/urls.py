@@ -39,6 +39,7 @@ router.register(r'sale-returns', SaleReturnItemViewSet, basename='sale-return')
 router.register(r'purchase-returns', PurchaseReturnItemViewSet, basename='purchase-return')
 router.register(r'delivery-notes', DeliveryNoteViewSet)
 
+router.register(r'account-transfer', CashAccountTransferViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
