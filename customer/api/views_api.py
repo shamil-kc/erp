@@ -24,9 +24,21 @@ class PartyViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='transactions')
     def customer_transactions(self, request, pk=None):
         party = self.get_object()
+        date_gte = request.query_params.get('date__gte')
+        date_lte = request.query_params.get('date__lte')
+
         sales = SaleInvoice.objects.filter(party=party)
         purchases = PurchaseInvoice.objects.filter(party=party)
         payments = PaymentEntry.objects.filter(party=party)
+
+        if date_gte:
+            sales = sales.filter(sale_date__gte=date_gte)
+            purchases = purchases.filter(purchase_date__gte=date_gte)
+            payments = payments.filter(date__gte=date_gte)
+        if date_lte:
+            sales = sales.filter(sale_date__lte=date_lte)
+            purchases = purchases.filter(purchase_date__lte=date_lte)
+            payments = payments.filter(date__lte=date_lte)
 
         # Total sale and purchase count
         total_sale_count = sales.count()
