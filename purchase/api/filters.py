@@ -1,14 +1,15 @@
 import django_filters
-from purchase.models import PurchaseInvoice, PurchaseItem
+from purchase.models import PurchaseInvoice, PurchaseItem, PurchaseReturnItem
 
 class PurchaseInvoiceFilter(django_filters.FilterSet):
     purchase_date__gte = django_filters.DateFilter(field_name='purchase_date', lookup_expr='gte')
     purchase_date__lte = django_filters.DateFilter(field_name='purchase_date', lookup_expr='lte')
     status = django_filters.CharFilter(field_name='status', lookup_expr='iexact')
+    party_id = django_filters.NumberFilter(field_name='party_id')
 
     class Meta:
         model = PurchaseInvoice
-        fields = ['purchase_date__gte', 'purchase_date__lte', 'status']
+        fields = ['purchase_date__gte', 'purchase_date__lte', 'status', 'party_id']
 
 class PurchaseItemFilter(django_filters.FilterSet):
     product_id = django_filters.NumberFilter(field_name='item__id')
@@ -24,3 +25,10 @@ class PurchaseItemFilter(django_filters.FilterSet):
         elif value is False:
             return queryset.filter(invoice__isnull=True)
         return queryset
+
+class PurchaseReturnItemFilter(django_filters.FilterSet):
+    party_id = django_filters.NumberFilter(field_name='purchase_invoice__party_id')
+
+    class Meta:
+        model = PurchaseReturnItem
+        fields = ['party_id']
