@@ -25,7 +25,8 @@ class SaleItemSerializer(serializers.ModelSerializer):
         if obj.item:
             data = {'product_id': obj.item.id,
                     'product_full_name': ProductItemSerializer().get_product_full_name(
-                        obj.item)}
+                        obj.item),
+                    'product_unit': obj.item.unit}
             return data
         return None
 
