@@ -34,11 +34,11 @@ class PartyViewSet(viewsets.ModelViewSet):
         if date_gte:
             sales = sales.filter(sale_date__gte=date_gte)
             purchases = purchases.filter(purchase_date__gte=date_gte)
-            payments = payments.filter(date__gte=date_gte)
+            payments = payments.filter(payment_date__gte=date_gte)
         if date_lte:
             sales = sales.filter(sale_date__lte=date_lte)
             purchases = purchases.filter(purchase_date__lte=date_lte)
-            payments = payments.filter(date__lte=date_lte)
+            payments = payments.filter(payment_date__lte=date_lte)
 
         # Total sale and purchase count
         total_sale_count = sales.count()
