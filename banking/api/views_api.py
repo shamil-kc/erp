@@ -196,6 +196,7 @@ class CashAccountTransferViewSet(viewsets.ModelViewSet):
         from_type = serializer.validated_data['from_type']
         to_type = serializer.validated_data['to_type']
         amount = serializer.validated_data['amount']
+        transfer_date = serializer.validated_data.get('transfer_date')
 
         if from_account == to_account:
             if from_type == to_type:
@@ -206,4 +207,4 @@ class CashAccountTransferViewSet(viewsets.ModelViewSet):
             # Different accounts: withdraw from source, deposit to target
             from_account.withdraw(amount, from_type)
             to_account.deposit(amount, to_type)
-        serializer.save(created_by=self.request.user)
+        serializer.save(created_by=self.request.user, transfer_date=transfer_date)

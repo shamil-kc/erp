@@ -91,6 +91,7 @@ class CashAccountTransfer(models.Model):
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    transfer_date = models.DateField(null=True, blank=True)
     note = models.TextField(blank=True, null=True)
 
     class Meta:

@@ -35,6 +35,6 @@ class CashAccountTransferSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'from_account', 'from_account_type', 'from_type',
             'to_account', 'to_account_type', 'to_type',
-            'amount', 'created_by', 'created_at', 'note'
+            'amount', 'created_by', 'created_at', 'note', "transfer_date"
         ]
         read_only_fields = ['created_by', 'created_at']

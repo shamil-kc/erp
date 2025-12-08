@@ -26,8 +26,9 @@ class CashAccountTransferFilter(django_filters.FilterSet):
     created_by = django_filters.CharFilter(field_name='created_by__username')
     min_amount = django_filters.NumberFilter(field_name='amount', lookup_expr='gte')
     max_amount = django_filters.NumberFilter(field_name='amount', lookup_expr='lte')
+    transfer_date__gte = django_filters.DateFilter(field_name='transfer_date', lookup_expr='gte')
+    transfer_date__lte = django_filters.DateFilter(field_name='transfer_date', lookup_expr='lte')
 
     class Meta:
         model = CashAccountTransfer
-        fields = ['from_account', 'to_account', 'from_type', 'to_type', 'created_by', 'min_amount', 'max_amount']
-
+        fields = ['from_account', 'to_account', 'from_type', 'to_type', 'created_by', 'min_amount', 'max_amount', 'transfer_date__gte', 'transfer_date__lte']
