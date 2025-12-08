@@ -136,7 +136,8 @@ class CheckApproveAPIView(APIView):
 
         payment_entry_id = request.data.get('payment_entry_id')
         amount = request.data.get('amount')
-        action = request.data.get('action')  # 'credit' or 'debit'
+        action = request.data.get('action')
+        cheque_cleared_date = request.data.get('cheque_cleared_date')
 
         if not payment_entry_id:
             return Response({"error": "payment_entry_id is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -167,7 +168,9 @@ class CheckApproveAPIView(APIView):
                 cash_account.cash_in_bank -= amount
             cash_account.save()
             payment_entry.is_cheque_cleared = True
+            payment_entry.cheque_cleared_date = cheque_cleared_date
             payment_entry.save()
+
 
         return Response({
             "cash_in_hand": float(cash_account.cash_in_hand),

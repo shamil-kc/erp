@@ -24,7 +24,7 @@ class PaymentEntry(models.Model):
 
     cheque_number = models.CharField(max_length=100, null=True, blank=True)
     is_cheque_cleared = models.BooleanField(default=False)
-
+    cheque_cleared_date = models.DateField(null=True, blank=True)
     payment_date = models.DateField(null=True, blank=True, help_text='Date of payment')  # <-- New field
 
     created_at = models.DateTimeField(auto_now_add=True)

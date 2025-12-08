@@ -20,6 +20,7 @@ class PaymentEntrySerializer(serializers.ModelSerializer):
             'party',
             'cheque_number',
             'payment_date',
+            'cheque_cleared_date'
         ]
         read_only_fields = ['created_by', 'modified_by', 'modified_at']
 
