@@ -10,13 +10,17 @@ class PaymentEntryFilter(django_filters.FilterSet):
     created_at__lte = django_filters.DateTimeFilter(field_name='created_at', lookup_expr='lte')
     is_cheque_cleared = django_filters.BooleanFilter(field_name='is_cheque_cleared')
     party_id = django_filters.NumberFilter(field_name='party_id')
+    start_date = django_filters.DateFilter(field_name='payment_date', lookup_expr='gte')
+    end_date = django_filters.DateFilter(field_name='payment_date', lookup_expr='lte')
 
     class Meta:
         model = PaymentEntry
         fields = [
             'invoice_type', 'invoice_id', 'payment_type',
-            'created_at__gte', 'created_at__lte', 'is_cheque_cleared', 'party_id'
+            'created_at__gte', 'created_at__lte', 'is_cheque_cleared', 'party_id',
+            'start_date', 'end_date'
         ]
+
 
 class CashAccountTransferFilter(django_filters.FilterSet):
     from_account = django_filters.NumberFilter(field_name='from_account__id')
