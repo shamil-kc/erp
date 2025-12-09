@@ -76,8 +76,18 @@ class Tax(models.Model):
 
 
 class ExpenseType(models.Model):
+    CATEGORY_CHOICES = (
+        ('direct', 'Direct'),
+        ('indirect', 'Indirect'),
+    )
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True, null=True)
+    category = models.CharField(
+        max_length=10,
+        choices=CATEGORY_CHOICES,
+        default='indirect',
+        help_text='Direct or Indirect expense'
+    )
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
