@@ -13,6 +13,8 @@ from sale.models import SaleInvoice, SaleItem, SaleReturnItemEntry
 from common.models import Expense
 from employee.models import SalaryEntry
 from inventory.models import Stock
+from report.utils import get_yearly_summary_report
+from rest_framework import status
 
 
 class InventoryReportAPIView(APIView):
@@ -475,3 +477,18 @@ class ProductWiseReportAPIView(APIView):
             "sale_returns": sale_returns,
             "purchase_returns": purchase_returns,
         })
+
+
+class YearlySummaryReportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        year = request.query_params.get('year')
+        if not year:
+            return Response({'error': 'year parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            year = int(year)
+        except ValueError:
+            return Response({'error': 'year must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+        data = get_yearly_summary_report(year)
+        return Response(data)
