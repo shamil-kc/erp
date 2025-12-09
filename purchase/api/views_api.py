@@ -8,6 +8,9 @@ from rest_framework import permissions
 from base.utils import log_activity
 from purchase.models import PurchaseReturnItem
 from purchase.api.serializers import PurchaseReturnItemSerializer
+from inventory.models import Stock
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
@@ -67,6 +70,48 @@ class PurchaseItemViewSet(viewsets.ModelViewSet):
         if self.action in ['update', 'partial_update']:
             return PurchaseItemUpdateSerializer
         return PurchaseItemSerializer
+
+    @action(detail=False, methods=['post'], url_path='stock-info')
+    def get_stock_info(self, request):
+        purchase_item_ids = request.data.get('purchase_item_ids', [])
+
+        if not isinstance(purchase_item_ids, list) or not purchase_item_ids:
+            return Response({'error': 'purchase_item_ids (list) is required'}, status=400)
+
+        purchase_items = PurchaseItem.objects.filter(id__in=purchase_item_ids).select_related('item', 'item__stock')
+
+        if not purchase_items.exists():
+            return Response({'error': 'No purchase items found for the provided IDs'}, status=404)
+
+        stock_info = []
+        for purchase_item in purchase_items:
+            try:
+                stock = Stock.objects.get(product_item=purchase_item.item)
+                current_stock = stock.quantity
+            except Stock.DoesNotExist:
+                current_stock = 0
+
+            # Calculate remaining_qty for this purchase item
+            # If you have a field or logic for remaining_qty, use it here.
+            # For now, assuming remaining_qty = purchase_item.qty - sum of related sale quantities (if applicable)
+            # If not tracked, just return purchase_item.qty
+
+            stock_data = {
+                'purchase_item_id': purchase_item.id,
+                'product_item': {
+                    'product_id': purchase_item.item.id,
+                    'name': str(purchase_item.item),
+                },
+                'current_stock': current_stock,
+                'purchase_item_qty': purchase_item.qty,
+                'remaining_qty': purchase_item.remaining_qty
+            }
+            stock_info.append(stock_data)
+
+        return Response({
+            'stock_info': stock_info,
+            'total_items': len(stock_info)
+        })
 
 
 class PurchaseReturnItemViewSet(viewsets.ModelViewSet):
