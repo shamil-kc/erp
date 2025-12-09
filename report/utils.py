@@ -1,4 +1,4 @@
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from purchase.models import PurchaseInvoice, PurchaseItem
 from sale.models import SaleInvoice, SaleItem
 from customer.models import Party
@@ -6,34 +6,70 @@ from datetime import date, timedelta
 from calendar import monthrange
 
 
-def get_opening_stock(item, start_date):
-    purchased = PurchaseItem.objects.filter(
-        item=item,
-        invoice__status=PurchaseInvoice.STATUS_APPROVED,
-        invoice__purchase_date__lt=start_date
-    ).aggregate(total=Sum('qty'))['total'] or 0
+def get_opening_stock(item, start_date, with_null_invoice=False):
+    purchase_filter = {
+        'item': item,
+        'invoice__purchase_date__lt': start_date,
+    }
+    sale_filter = {
+        'item': item,
+        'invoice__sale_date__lt': start_date,
+    }
 
-    sold = SaleItem.objects.filter(
-        item=item,
-        invoice__status=SaleInvoice.STATUS_APPROVED,
-        invoice__sale_date__lt=start_date
-    ).aggregate(total=Sum('qty'))['total'] or 0
+    if with_null_invoice:
+        purchased = PurchaseItem.objects.filter(
+            (Q(invoice__status=PurchaseInvoice.STATUS_APPROVED) | Q(invoice__isnull=True)),
+            **purchase_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
+
+        sold = SaleItem.objects.filter(
+            (Q(invoice__status=SaleInvoice.STATUS_APPROVED) | Q(invoice__isnull=True)),
+            **sale_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
+    else:
+        purchased = PurchaseItem.objects.filter(
+            invoice__status=PurchaseInvoice.STATUS_APPROVED,
+            **purchase_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
+
+        sold = SaleItem.objects.filter(
+            invoice__status=SaleInvoice.STATUS_APPROVED,
+            **sale_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
 
     return purchased - sold
 
 
-def get_closing_stock(item, end_date):
-    purchased = PurchaseItem.objects.filter(
-        item=item,
-        invoice__status=PurchaseInvoice.STATUS_APPROVED,
-        invoice__purchase_date__lte=end_date
-    ).aggregate(total=Sum('qty'))['total'] or 0
+def get_closing_stock(item, end_date, with_null_invoice=False):
+    purchase_filter = {
+        'item': item,
+        'invoice__purchase_date__lte': end_date,
+    }
+    sale_filter = {
+        'item': item,
+        'invoice__sale_date__lte': end_date,
+    }
 
-    sold = SaleItem.objects.filter(
-        item=item,
-        invoice__status=SaleInvoice.STATUS_APPROVED,
-        invoice__sale_date__lte=end_date
-    ).aggregate(total=Sum('qty'))['total'] or 0
+    if with_null_invoice:
+        purchased = PurchaseItem.objects.filter(
+            (Q(invoice__status=PurchaseInvoice.STATUS_APPROVED) | Q(invoice__isnull=True)),
+            **purchase_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
+
+        sold = SaleItem.objects.filter(
+            (Q(invoice__status=SaleInvoice.STATUS_APPROVED) | Q(invoice__isnull=True)),
+            **sale_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
+    else:
+        purchased = PurchaseItem.objects.filter(
+            invoice__status=PurchaseInvoice.STATUS_APPROVED,
+            **purchase_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
+
+        sold = SaleItem.objects.filter(
+            invoice__status=SaleInvoice.STATUS_APPROVED,
+            **sale_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
 
     return purchased - sold
 
