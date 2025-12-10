@@ -80,3 +80,97 @@ class PartyViewSet(viewsets.ModelViewSet):
             'cheque_due_total': cheque_due_total,
             'cheque_paid_total': cheque_paid_total
         })
+
+    @action(detail=True, methods=['get'], url_path='datewise-transactions')
+    def datewise_transactions(self, request, pk=None):
+        """
+        Returns date-wise grouped transactions (sale, purchase, payment) for a customer,
+        with running balance tally.
+        """
+        party = self.get_object()
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        # Get sales
+        sales = SaleInvoice.objects.filter(party=party)
+        if start_date:
+            sales = sales.filter(sale_date__gte=start_date)
+        if end_date:
+            sales = sales.filter(sale_date__lte=end_date)
+
+        # Get purchases
+        purchases = PurchaseInvoice.objects.filter(party=party)
+        if start_date:
+            purchases = purchases.filter(purchase_date__gte=start_date)
+        if end_date:
+            purchases = purchases.filter(purchase_date__lte=end_date)
+
+        # Get payments
+        from banking.models import PaymentEntry
+        payments = PaymentEntry.objects.filter(party=party)
+        if start_date:
+            payments = payments.filter(payment_date__gte=start_date)
+        if end_date:
+            payments = payments.filter(payment_date__lte=end_date)
+
+        # Prepare unified transaction list
+        transactions = []
+        for sale in sales:
+            transactions.append({
+                'date': sale.sale_date,
+                'type': 'sale',
+                'ref': sale.invoice_no,
+                'amount': float(sale.total_with_vat_aed),
+                'direction': 'credit',  # sale increases balance
+            })
+        for purchase in purchases:
+            transactions.append({
+                'date': purchase.purchase_date,
+                'type': 'purchase',
+                'ref': purchase.invoice_no,
+                'amount': float(purchase.total_with_vat_aed),
+                'direction': 'debit',  # purchase decreases balance
+            })
+        for payment in payments:
+            transactions.append({
+                'date': payment.payment_date,
+                'type': 'payment',
+                'ref': payment.id,
+                'amount': float(payment.amount),
+                'direction': 'debit',  # payment decreases balance
+            })
+
+        # Filter out transactions with null date to avoid TypeError
+        transactions = [tx for tx in transactions if tx['date'] is not None]
+
+        # Sort by date, then by type for consistency
+        transactions.sort(key=lambda x: (x['date'], x['type']))
+
+        # Group by date
+        from collections import OrderedDict, defaultdict
+        grouped = OrderedDict()
+        balance = 0
+        for tx in transactions:
+            date_key = tx['date'].isoformat() if hasattr(tx['date'], 'isoformat') else str(tx['date'])
+            if date_key not in grouped:
+                grouped[date_key] = {
+                    'date': date_key,
+                    'transactions': [],
+                }
+            # Calculate balance after this transaction
+            if tx['type'] == 'sale':
+                balance += tx['amount']
+            else:
+                balance -= tx['amount']
+            tx_with_balance = dict(tx)
+            tx_with_balance['balance'] = balance
+            grouped[date_key]['transactions'].append(tx_with_balance)
+
+        # Prepare final result as a list
+        result = list(grouped.values())
+        total_balance = balance
+
+        return Response({
+            'datewise': result,
+            'total_balance': total_balance
+        })
