@@ -178,7 +178,7 @@ def get_yearly_summary_report(year):
     def total_stock(as_of_date):
         total = 0
         for item in ProductItem.objects.all():
-            total += get_closing_stock(item, as_of_date)
+            total += get_closing_stock(item, as_of_date, with_null_invoice=True)
         return total
 
     # Prepare month boundaries
