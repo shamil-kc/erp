@@ -174,17 +174,16 @@ def get_yearly_summary_report(year):
     from products.models import ProductItem
     from inventory.models import Stock
 
-    # Helper to sum all items' stock for a date, including physical stock without purchase invoice
     def total_stock(as_of_date):
         total = 0
-        # 1. Sum stock from purchase/sale records (with/without invoice)
         for item in ProductItem.objects.all():
-            total += get_closing_stock(item, as_of_date, with_null_invoice=True)
-        purchased_items = PurchaseItem.objects.filter(invoice__isnull=True).values_list('item_id', flat=True)
+            total += get_closing_stock(item, as_of_date, with_null_invoice=False)
+        purchased_items = PurchaseItem.objects.filter(invoice__isnull=True).values_list('item_id', flat=True).distinct()
         if purchased_items:
             for item_id in purchased_items:
                 stock_qty = Stock.objects.filter(product_item_id=item_id).aggregate(total=Sum('quantity'))['total'] or 0
                 total += stock_qty
+        print(total)
         return total
 
     # Prepare month boundaries
