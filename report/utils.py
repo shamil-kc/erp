@@ -180,14 +180,9 @@ def get_yearly_summary_report(year):
         # 1. Sum stock from purchase/sale records (with/without invoice)
         for item in ProductItem.objects.all():
             total += get_closing_stock(item, as_of_date, with_null_invoice=True)
-        # 2. Add stock for items that have physical stock but no purchase invoice at all
-        #    (i.e., orphan stock entries)
-        # Find items with Stock but no PurchaseItem
-        stock_items = set(Stock.objects.values_list('product_item_id', flat=True))
-        purchased_items = set(PurchaseItem.objects.values_list('item_id', flat=True))
-        orphan_item_ids = stock_items - purchased_items
-        if orphan_item_ids:
-            for item_id in orphan_item_ids:
+        purchased_items = PurchaseItem.objects.filter(invoice__isnull=True).values_list('item_id', flat=True)
+        if purchased_items:
+            for item_id in purchased_items:
                 stock_qty = Stock.objects.filter(product_item_id=item_id).aggregate(total=Sum('quantity'))['total'] or 0
                 total += stock_qty
         return total
