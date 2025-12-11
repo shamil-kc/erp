@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db.models import Sum, Q
 from purchase.models import PurchaseInvoice, PurchaseItem
 from sale.models import SaleInvoice, SaleItem
@@ -183,8 +185,29 @@ def get_yearly_summary_report(year):
             for item_id in purchased_items:
                 stock_qty = Stock.objects.filter(product_item_id=item_id).aggregate(total=Sum('quantity'))['total'] or 0
                 total += stock_qty
-        print(total)
         return total
+
+    def closing_stock_amount(as_of_date):
+        """
+        Calculate the total value (amount_aed) of closing stock as of a date.
+        Uses latest purchase price for each item in stock.
+        """
+        total_amount = 0
+        for item in ProductItem.objects.all():
+            qty = get_closing_stock(item, as_of_date, with_null_invoice=False)
+            if qty > 0:
+                # Get latest purchase price (amount_aed) for this item before as_of_date
+                latest_purchase = PurchaseItem.objects.filter(
+                    item=item,
+                    invoice__purchase_date__lte=as_of_date,
+                    invoice__status=PurchaseInvoice.STATUS_APPROVED
+                ).order_by('-invoice__purchase_date', '-pk').first()
+                price = latest_purchase.amount_aed if latest_purchase else 0
+                total_amount += qty * float(price)
+        # Add orphan stock (items with stock but no purchase invoice)
+        purchased_items = PurchaseItem.objects.filter(invoice__isnull=True, ).values_list('total_price_aed', flat=True)
+        total_amount += float(sum(purchased_items))
+        return total_amount
 
     # Prepare month boundaries
     year = int(year)
@@ -196,6 +219,7 @@ def get_yearly_summary_report(year):
         # Opening stock is closing stock of previous day
         opening_stock = total_stock(month_start - timedelta(days=1))
         closing_stock = total_stock(month_end)
+        closing_stock_amt = closing_stock_amount(month_end)
 
         # Sales
         sales_qs = SaleInvoice.objects.filter(
@@ -223,6 +247,7 @@ def get_yearly_summary_report(year):
             'month': month_start.strftime('%B'),
             'opening_stock': opening_stock,
             'closing_stock': closing_stock,
+            'closing_stock_amount': float(closing_stock_amt),
             'sales_qty': sales_qty,
             'sales_amount': float(sales_amount),
             'purchase_qty': purchase_qty,
@@ -234,6 +259,7 @@ def get_yearly_summary_report(year):
     year_end = date(year, 12, 31)
     opening_stock_year = total_stock(year_start - timedelta(days=1))
     closing_stock_year = total_stock(year_end)
+    closing_stock_amount_year = closing_stock_amount(year_end)
 
     sales_qs_year = SaleInvoice.objects.filter(
         status=SaleInvoice.STATUS_APPROVED,
@@ -261,6 +287,7 @@ def get_yearly_summary_report(year):
         'grand_totals': {
             'opening_stock': opening_stock_year,
             'closing_stock': closing_stock_year,
+            'closing_stock_amount': float(closing_stock_amount_year),
             'sales_qty': sales_qty_year,
             'sales_amount': float(sales_amount_year),
             'purchase_qty': purchase_qty_year,
