@@ -3,9 +3,17 @@ from common.models import *
 
 
 class ServiceFeeSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    sales_invoice = serializers.SerializerMethodField()
+
     class Meta:
         model = ServiceFee
         fields = '__all__'
+
+    def get_sales_invoice(self, obj):
+        id = obj.sales_invoice.id if obj.sales_invoice else None
+        invoice_no = obj.sales_invoice.invoice_no if obj.sales_invoice else None
+        return {'id': id, 'invoice_no': invoice_no} if id and invoice_no else None
 
 class CommissionSerializer(serializers.ModelSerializer):
     class Meta:
