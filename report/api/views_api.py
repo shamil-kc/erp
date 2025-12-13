@@ -130,15 +130,18 @@ class PurchaseSalesReportAPIView(APIView):
         total_sales_discount_usd = sales_invoices.aggregate(total=Sum('discount_usd'))['total'] or Decimal('0')
         total_sales_discount_aed = sales_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
 
-        # EXPENSES & WAGES (filtering by date if present)
+        # EXPENSES & WAGES & SALARY (filtering by date if present)
         expense_filters = {}
         wage_filters = {}
+        salary_filters = {}
         if start_date:
             expense_filters['date__gte'] = start_date
             wage_filters['date__gte'] = start_date
+            salary_filters['date__gte'] = start_date
         if end_date:
             expense_filters['date__lte'] = end_date
             wage_filters['date__lte'] = end_date
+            salary_filters['date__lte'] = end_date
 
         # Direct and Indirect Expenses
         direct_expenses_usd = Expense.objects.filter(type__category='direct', **expense_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
@@ -149,9 +152,13 @@ class PurchaseSalesReportAPIView(APIView):
         # Wages
         total_wages_aed = Wage.objects.filter(**wage_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
 
+        # Salary
+        total_salary_usd = SalaryEntry.objects.filter(**salary_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
+        total_salary_aed = SalaryEntry.objects.filter(**salary_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+
         # For backward compatibility, keep all_expenses as sum of all
-        all_expenses_usd = direct_expenses_usd + indirect_expenses_usd
-        all_expenses_aed = direct_expenses_aed + indirect_expenses_aed + total_wages_aed
+        all_expenses_usd = direct_expenses_usd + indirect_expenses_usd + total_salary_usd
+        all_expenses_aed = direct_expenses_aed + indirect_expenses_aed + total_wages_aed + total_salary_aed
 
         report = {
             "purchase": {
@@ -185,6 +192,8 @@ class PurchaseSalesReportAPIView(APIView):
                 "indirect_expenses_usd": float(indirect_expenses_usd),
                 "indirect_expenses_aed": float(indirect_expenses_aed),
                 "total_wages_aed": float(total_wages_aed),
+                "total_salary_usd": float(total_salary_usd),
+                "total_salary_aed": float(total_salary_aed),
                 "all_expenses_usd": float(all_expenses_usd),
                 "all_expenses_aed": float(all_expenses_aed),
             }
