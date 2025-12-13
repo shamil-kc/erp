@@ -174,3 +174,61 @@ class PartyViewSet(viewsets.ModelViewSet):
             'datewise': result,
             'total_balance': total_balance
         })
+
+    @action(detail=False, methods=['get'], url_path='all-transactions')
+    def all_transactions(self, request):
+        """
+        Returns summary of transactions for all parties, similar to customer_transactions.
+        Supports ?has_balance=true|false to filter by balance.
+        """
+        has_balance = request.query_params.get('has_balance')
+        parties = self.get_queryset()
+        results = []
+        for party in parties:
+            sales = SaleInvoice.objects.filter(party=party)
+            purchases = PurchaseInvoice.objects.filter(party=party)
+            payments = PaymentEntry.objects.filter(party=party)
+
+            total_sale_count = sales.count()
+            total_purchase_count = purchases.count()
+            total_sale_amount = sales.aggregate(total=models.Sum('total_with_vat_aed'))['total'] or 0
+            total_purchase_amount = purchases.aggregate(total=models.Sum('total_with_vat_aed'))['total'] or 0
+
+            payment_types = payments.values_list('payment_type', flat=True).distinct()
+            payments_by_type = {}
+            total_payments = 0
+            for p_type in payment_types:
+                type_payments = payments.filter(payment_type=p_type)
+                type_total = type_payments.aggregate(total=models.Sum('amount'))['total'] or 0
+                payments_by_type[p_type] = type_total
+                total_payments += type_total
+
+            cheque_payments = payments.filter(payment_type='cheque')
+            cheque_due = cheque_payments.filter(is_cheque_cleared=False)
+            cheque_paid = cheque_payments.filter(is_cheque_cleared=True)
+            cheque_due_total = cheque_due.aggregate(total=models.Sum('amount'))['total'] or 0
+            cheque_paid_total = cheque_paid.aggregate(total=models.Sum('amount'))['total'] or 0
+
+            balance_amount = total_sale_amount - total_payments
+
+            # Apply has_balance filter
+            if has_balance is not None:
+                if has_balance.lower() == 'true' and balance_amount == 0:
+                    continue
+                if has_balance.lower() == 'false' and balance_amount != 0:
+                    continue
+
+            results.append({
+                'party_id': party.id,
+                'party_name': party.name,
+                'total_sale_count': total_sale_count,
+                'total_purchase_count': total_purchase_count,
+                'total_sale_amount': total_sale_amount,
+                'total_purchase_amount': total_purchase_amount,
+                'payments_by_type': payments_by_type,
+                'total_payments': total_payments,
+                'balance_amount': balance_amount,
+                'cheque_due_total': cheque_due_total,
+                'cheque_paid_total': cheque_paid_total
+            })
+        return Response(results)
