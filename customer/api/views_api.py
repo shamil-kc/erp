@@ -182,6 +182,7 @@ class PartyViewSet(viewsets.ModelViewSet):
         Supports ?has_balance=true|false to filter by balance.
         Supports ?type=customer|supplier to filter by party type.
         Supports ?start_date=YYYY-MM-DD and ?end_date=YYYY-MM-DD to filter by date.
+        Adds grand totals for balance, sales, purchases, and payments.
         """
         has_balance = request.query_params.get('has_balance')
         party_type = request.query_params.get('type')
@@ -192,6 +193,11 @@ class PartyViewSet(viewsets.ModelViewSet):
             parties = parties.filter(type=party_type)
 
         results = []
+        grand_total_balance = 0
+        grand_total_sales = 0
+        grand_total_purchases = 0
+        grand_total_payments = 0
+
         for party in parties:
             sales = SaleInvoice.objects.filter(party=party)
             purchases = PurchaseInvoice.objects.filter(party=party)
@@ -248,4 +254,18 @@ class PartyViewSet(viewsets.ModelViewSet):
                 'cheque_due_total': cheque_due_total,
                 'cheque_paid_total': cheque_paid_total
             })
-        return Response(results)
+
+            grand_total_balance += balance_amount
+            grand_total_sales += total_sale_amount
+            grand_total_purchases += total_purchase_amount
+            grand_total_payments += total_payments
+
+        return Response({
+            'results': results,
+            'grand_totals': {
+                'balance_amount': grand_total_balance,
+                'total_sale_amount': grand_total_sales,
+                'total_purchase_amount': grand_total_purchases,
+                'total_payments': grand_total_payments
+            }
+        })
