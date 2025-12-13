@@ -21,5 +21,13 @@ class Party(models.Model):
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                     related_name='+')
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trn', 'type'],
+                name='unique_trn_per_type'
+            )
+        ]
+
     def __str__(self):
         return f"{self.name} ({self.type})"
