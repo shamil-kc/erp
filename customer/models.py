@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 
 class Party(models.Model):
@@ -25,7 +26,8 @@ class Party(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['trn', 'type'],
-                name='unique_trn_per_type'
+                name='unique_trn_per_type',
+                condition=Q(trn__isnull=False) & ~Q(trn='')
             )
         ]
 
