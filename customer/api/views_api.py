@@ -181,17 +181,30 @@ class PartyViewSet(viewsets.ModelViewSet):
         Returns summary of transactions for all parties, similar to customer_transactions.
         Supports ?has_balance=true|false to filter by balance.
         Supports ?type=customer|supplier to filter by party type.
+        Supports ?start_date=YYYY-MM-DD and ?end_date=YYYY-MM-DD to filter by date.
         """
         has_balance = request.query_params.get('has_balance')
         party_type = request.query_params.get('type')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
         parties = self.get_queryset()
         if party_type:
             parties = parties.filter(type=party_type)
+
         results = []
         for party in parties:
             sales = SaleInvoice.objects.filter(party=party)
             purchases = PurchaseInvoice.objects.filter(party=party)
             payments = PaymentEntry.objects.filter(party=party)
+
+            if start_date:
+                sales = sales.filter(sale_date__gte=start_date)
+                purchases = purchases.filter(purchase_date__gte=start_date)
+                payments = payments.filter(payment_date__gte=start_date)
+            if end_date:
+                sales = sales.filter(sale_date__lte=end_date)
+                purchases = purchases.filter(purchase_date__lte=end_date)
+                payments = payments.filter(payment_date__lte=end_date)
 
             total_sale_count = sales.count()
             total_purchase_count = purchases.count()
