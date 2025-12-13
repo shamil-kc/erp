@@ -180,9 +180,13 @@ class PartyViewSet(viewsets.ModelViewSet):
         """
         Returns summary of transactions for all parties, similar to customer_transactions.
         Supports ?has_balance=true|false to filter by balance.
+        Supports ?type=customer|supplier to filter by party type.
         """
         has_balance = request.query_params.get('has_balance')
+        party_type = request.query_params.get('type')
         parties = self.get_queryset()
+        if party_type:
+            parties = parties.filter(type=party_type)
         results = []
         for party in parties:
             sales = SaleInvoice.objects.filter(party=party)
