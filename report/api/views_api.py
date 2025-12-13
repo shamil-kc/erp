@@ -10,7 +10,7 @@ from products.api.serializers import ProductItemSerializer
 from products.models import ProductItem
 from purchase.models import PurchaseInvoice, PurchaseItem, PurchaseReturnItemEntry
 from sale.models import SaleInvoice, SaleItem, SaleReturnItemEntry
-from common.models import Expense
+from common.models import Expense, Wage
 from employee.models import SalaryEntry
 from inventory.models import Stock
 from report.utils import get_yearly_summary_report
@@ -130,22 +130,28 @@ class PurchaseSalesReportAPIView(APIView):
         total_sales_discount_usd = sales_invoices.aggregate(total=Sum('discount_usd'))['total'] or Decimal('0')
         total_sales_discount_aed = sales_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
 
-        # EXPENSES & SALARY (filtering by date if present)
+        # EXPENSES & WAGES (filtering by date if present)
         expense_filters = {}
-        salary_filters = {}
+        wage_filters = {}
         if start_date:
             expense_filters['date__gte'] = start_date
-            salary_filters['date__gte'] = start_date
+            wage_filters['date__gte'] = start_date
         if end_date:
             expense_filters['date__lte'] = end_date
-            salary_filters['date__lte'] = end_date
+            wage_filters['date__lte'] = end_date
 
-        total_expense_usd = Expense.objects.filter(**expense_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
-        total_expense_aed = Expense.objects.filter(**expense_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-        total_salary_usd = SalaryEntry.objects.filter(**salary_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
-        total_salary_aed = SalaryEntry.objects.filter(**salary_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-        all_expenses_usd = total_expense_usd + total_salary_usd
-        all_expenses_aed = total_expense_aed + total_salary_aed
+        # Direct and Indirect Expenses
+        direct_expenses_usd = Expense.objects.filter(type__category='direct', **expense_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
+        direct_expenses_aed = Expense.objects.filter(type__category='direct', **expense_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+        indirect_expenses_usd = Expense.objects.filter(type__category='indirect', **expense_filters).aggregate(total=Sum('amount_usd'))['total'] or Decimal('0')
+        indirect_expenses_aed = Expense.objects.filter(type__category='indirect', **expense_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+
+        # Wages
+        total_wages_aed = Wage.objects.filter(**wage_filters).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+
+        # For backward compatibility, keep all_expenses as sum of all
+        all_expenses_usd = direct_expenses_usd + indirect_expenses_usd
+        all_expenses_aed = direct_expenses_aed + indirect_expenses_aed + total_wages_aed
 
         report = {
             "purchase": {
@@ -174,10 +180,11 @@ class PurchaseSalesReportAPIView(APIView):
                 "total_discount_aed": float(total_sales_discount_aed),
             },
             "expenses": {
-                "total_expense_usd": float(total_expense_usd),
-                "total_expense_aed": float(total_expense_aed),
-                "total_salary_usd": float(total_salary_usd),
-                "total_salary_aed": float(total_salary_aed),
+                "direct_expenses_usd": float(direct_expenses_usd),
+                "direct_expenses_aed": float(direct_expenses_aed),
+                "indirect_expenses_usd": float(indirect_expenses_usd),
+                "indirect_expenses_aed": float(indirect_expenses_aed),
+                "total_wages_aed": float(total_wages_aed),
                 "all_expenses_usd": float(all_expenses_usd),
                 "all_expenses_aed": float(all_expenses_aed),
             }
