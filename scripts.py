@@ -34,7 +34,7 @@ class Command(BaseCommand):
             trn = dup['trn']
             parties = Party.objects.filter(trn=trn)
             names = ", ".join([p.name for p in parties])
-            print(f"TRN: {trn} | Count: {dup['trn_count']} | Parties: {names}")
+            print(f"TRN: {trn} | Count: {dup['trn_count']} | Parties: {names} | Type: {parties.type}")
 
 if __name__ == "__main__":
     command = Command()
