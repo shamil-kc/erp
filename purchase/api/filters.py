@@ -6,10 +6,11 @@ class PurchaseInvoiceFilter(django_filters.FilterSet):
     purchase_date__lte = django_filters.DateFilter(field_name='purchase_date', lookup_expr='lte')
     status = django_filters.CharFilter(field_name='status', lookup_expr='iexact')
     party_id = django_filters.NumberFilter(field_name='party_id')
+    invoice_no = django_filters.CharFilter(field_name='invoice_no', lookup_expr='icontains')
 
     class Meta:
         model = PurchaseInvoice
-        fields = ['purchase_date__gte', 'purchase_date__lte', 'status', 'party_id']
+        fields = ['purchase_date__gte', 'purchase_date__lte', 'status', 'party_id', 'invoice_no']
 
 class PurchaseItemFilter(django_filters.FilterSet):
     product_id = django_filters.NumberFilter(field_name='item__id')
