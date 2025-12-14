@@ -6,6 +6,7 @@ urlpatterns = [
     path('monthly-report/', YearlySummaryReportAPIView.as_view() ),
 
     path('profict-loss/', ProfitAndLossReportAPIView.as_view() ),
+    path('balance-sheet/', BalanceSheetReportAPIView.as_view() ),
 
 
 

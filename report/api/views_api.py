@@ -13,7 +13,7 @@ from sale.models import SaleInvoice, SaleItem, SaleReturnItemEntry
 from common.models import Expense, Wage
 from employee.models import SalaryEntry
 from inventory.models import Stock
-from report.utils import get_yearly_summary_report, get_profit_and_loss_report
+from report.utils import get_yearly_summary_report, get_profit_and_loss_report, get_balance_sheet_report
 from rest_framework import status
 
 
@@ -519,4 +519,13 @@ class ProfitAndLossReportAPIView(APIView):
         if not start_date or not end_date:
             return Response({'error': 'start_date and end_date are required'}, status=status.HTTP_400_BAD_REQUEST)
         data = get_profit_and_loss_report(start_date, end_date)
+        return Response(data)
+
+
+class BalanceSheetReportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        as_of_date = request.query_params.get('as_of_date')
+        data = get_balance_sheet_report(as_of_date)
         return Response(data)

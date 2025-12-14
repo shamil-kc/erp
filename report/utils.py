@@ -483,3 +483,107 @@ def get_profit_and_loss_report(start_date, end_date):
             'net_profit': float(net_profit),
         }
     }
+
+
+def get_balance_sheet_report(as_of_date=None):
+    """
+    Returns a dict with balance sheet data as of a given date.
+    All totals are shown separately (not grouped).
+    """
+    from core.models import CapitalAccount
+    from banking.models import CashAccount
+    from common.models import Asset
+    from sale.models import SaleInvoice
+    from purchase.models import PurchaseInvoice
+    from customer.models import Party
+    from decimal import Decimal
+    from django.db.models import Sum
+
+    # Use today if no date provided
+    import datetime
+    if not as_of_date:
+        as_of_date = datetime.date.today()
+
+    # Total capital
+    total_capital = CapitalAccount.objects.aggregate(total=Sum('balance'))['total'] or Decimal('0')
+
+    # Profit cash account (type='profit')
+    profit_cash = CashAccount.objects.filter(type='profit').first()
+    profit_cash_in_hand = profit_cash.cash_in_hand if profit_cash else Decimal('0')
+    profit_cash_in_bank = profit_cash.cash_in_bank if profit_cash else Decimal('0')
+    profit_cash_total = (profit_cash_in_hand or Decimal('0')) + (profit_cash_in_bank or Decimal('0'))
+
+    # Fixed assets
+    fixed_assets_qs = Asset.objects.filter(status='holding')
+    fixed_assets_total = fixed_assets_qs.aggregate(total=Sum('price'))['total'] or Decimal('0')
+    fixed_assets = [
+        {'name': a.name, 'price': float(a.price), 'quantity': a.quantity, 'description': a.description}
+        for a in fixed_assets_qs
+    ]
+
+    # Closing stock (current assets)
+    from products.models import ProductItem
+    from purchase.models import PurchaseItem
+    def get_total_stock_value(as_of_date):
+        total = Decimal('0')
+        for item in ProductItem.objects.all():
+            from .utils import get_closing_stock
+            qty = get_closing_stock(item, as_of_date)
+            if qty > 0:
+                latest_purchase = PurchaseItem.objects.filter(
+                    item=item,
+                    invoice__purchase_date__lte=as_of_date,
+                    invoice__status=PurchaseInvoice.STATUS_APPROVED
+                ).order_by('-invoice__purchase_date', '-pk').first()
+                price = latest_purchase.amount_aed if latest_purchase else Decimal('0')
+                total += qty * price
+        return total
+    closing_stock = get_total_stock_value(as_of_date)
+
+    # Sundry debtors (current assets)
+    sundry_debtors = get_sundry_debtors(as_of_date, currency='aed')
+
+    # Cash in hand and bank (main cash account)
+    main_cash = CashAccount.objects.filter(type='main').first()
+    cash_in_hand = main_cash.cash_in_hand if main_cash else Decimal('0')
+    cash_in_bank = main_cash.cash_in_bank if main_cash else Decimal('0')
+
+    # Current liabilities: amount payable (approved purchases not paid), sundry creditors
+    sundry_creditors = get_sundry_creditors(as_of_date, currency='aed')
+    # Amount payable: total of approved purchases minus payments made
+    total_purchases = PurchaseInvoice.objects.filter(
+        status=PurchaseInvoice.STATUS_APPROVED,
+        purchase_date__lte=as_of_date
+    ).aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
+    # Payments made for purchases
+    from banking.models import PaymentEntry
+    payments_made = PaymentEntry.objects.filter(
+        invoice_type='purchase',
+        payment_date__lte=as_of_date
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0'
+    )
+    amount_payable = total_purchases - payments_made
+
+    # Profit and loss total (net profit till date)
+    from report.utils import get_profit_and_loss_report
+    profit_loss = get_profit_and_loss_report('2000-01-01', as_of_date)
+    net_profit = profit_loss['profit']['net_profit']
+
+    return {
+        'as_of_date': str(as_of_date),
+        # Assets
+        'fixed_assets_total': float(fixed_assets_total),
+        'fixed_assets_list': fixed_assets,
+        'closing_stock': float(closing_stock),
+        'sundry_debtors': float(sundry_debtors),
+        'cash_in_hand': float(cash_in_hand),
+        'cash_in_bank': float(cash_in_bank),
+        'profit_cash_in_hand': float(profit_cash_in_hand),
+        'profit_cash_in_bank': float(profit_cash_in_bank),
+        'profit_cash_total': float(profit_cash_total),
+        # Liabilities
+        'total_capital': float(total_capital),
+        'amount_payable': float(amount_payable),
+        'sundry_creditors': float(sundry_creditors),
+        'profit_and_loss': float(net_profit),
+    }
