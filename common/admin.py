@@ -35,3 +35,9 @@ class ServiceFee(admin.ModelAdmin):
 class ExtraChargesAdmin(admin.ModelAdmin):
     list_display = ('description', 'amount',)
     search_fields = ('description',)
+
+
+@admin.register(Wage)
+class WageChargesAdmin(admin.ModelAdmin):
+    list_display = ('amount_aed', 'amount_usd', 'date', 'notes')
+    date_hierarchy = 'date'
