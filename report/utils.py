@@ -299,12 +299,12 @@ def get_yearly_summary_report(year):
 def get_profit_and_loss_report(start_date, end_date):
     """
     Returns a dict with profit and loss data for the given period.
-    Includes: purchase, sale, direct/indirect expenses, opening/closing stock,
+    Includes: purchase, sale, direct/indirect expenses (type-wise), opening/closing stock,
     service fees, commission, wage, extra charges, salary, assets, liabilities.
     """
     from purchase.models import PurchaseInvoice, PurchaseItem
     from sale.models import SaleInvoice, SaleItem
-    from common.models import Expense, Wage, Commission, ServiceFee, ExtraCharges, Asset
+    from common.models import Expense, Wage, Commission, ServiceFee, ExtraCharges, Asset, ExpenseType
     from employee.models import SalaryEntry
     from inventory.models import Stock
     from products.models import ProductItem
@@ -339,17 +339,29 @@ def get_profit_and_loss_report(start_date, end_date):
     sales_shipping_aed = SaleItem.objects.filter(invoice_id__in=sales_ids).aggregate(
         total=Sum('shipping_aed'))['total'] or Decimal('0')
 
-    # Expenses
-    direct_expenses_aed = Expense.objects.filter(
+    # Expenses (type-wise for direct and indirect)
+    direct_expenses_qs = Expense.objects.filter(
         type__category='direct',
         date__gte=start_date,
         date__lte=end_date
-    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-    indirect_expenses_aed = Expense.objects.filter(
+    )
+    indirect_expenses_qs = Expense.objects.filter(
         type__category='indirect',
         date__gte=start_date,
         date__lte=end_date
-    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+    )
+
+    # Aggregate totals
+    direct_expenses_aed = direct_expenses_qs.aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+    indirect_expenses_aed = indirect_expenses_qs.aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+
+    # Type-wise breakdowns
+    direct_expenses_typewise = list(
+        direct_expenses_qs.values('type__name').annotate(total=Sum('amount_aed'))
+    )
+    indirect_expenses_typewise = list(
+        indirect_expenses_qs.values('type__name').annotate(total=Sum('amount_aed'))
+    )
 
     # Wages
     total_wages_aed = Wage.objects.filter(
@@ -467,7 +479,15 @@ def get_profit_and_loss_report(start_date, end_date):
         },
         'expenses': {
             'direct_expenses_aed': float(direct_expenses_aed),
+            'direct_expenses_typewise': [
+                {'type': e['type__name'], 'total': float(e['total'] or 0)}
+                for e in direct_expenses_typewise
+            ],
             'indirect_expenses_aed': float(indirect_expenses_aed),
+            'indirect_expenses_typewise': [
+                {'type': e['type__name'], 'total': float(e['total'] or 0)}
+                for e in indirect_expenses_typewise
+            ],
             'wages_aed': float(total_wages_aed),
             'salary_aed': float(total_salary_aed),
             'commission_aed': float(total_commission_aed),
