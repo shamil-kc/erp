@@ -39,5 +39,5 @@ class ExtraChargesAdmin(admin.ModelAdmin):
 
 @admin.register(Wage)
 class WageChargesAdmin(admin.ModelAdmin):
-    list_display = ('amount_aed', 'amount_usd', 'date', 'notes')
+    list_display = ('amount_aed', 'date', 'notes')
     date_hierarchy = 'date'
