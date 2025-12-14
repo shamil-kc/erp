@@ -11,3 +11,9 @@ class CashAccountAdmin(admin.ModelAdmin):
 class PaymentEntryAdmin(admin.ModelAdmin):
     list_display = ('invoice_type', 'invoice_id', 'payment_type', 'amount',
                     'created_at', 'created_by')
+
+
+@admin.register(CashAccountTransfer)
+class CashAccountTransferAdmin(admin.ModelAdmin):
+    list_display = ('from_account', 'to_account', 'from_type', 'to_type',
+                    'amount', 'created_at')
