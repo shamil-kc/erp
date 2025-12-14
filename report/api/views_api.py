@@ -13,7 +13,7 @@ from sale.models import SaleInvoice, SaleItem, SaleReturnItemEntry
 from common.models import Expense, Wage
 from employee.models import SalaryEntry
 from inventory.models import Stock
-from report.utils import get_yearly_summary_report
+from report.utils import get_yearly_summary_report, get_profit_and_loss_report
 from rest_framework import status
 
 
@@ -507,4 +507,16 @@ class YearlySummaryReportAPIView(APIView):
         except ValueError:
             return Response({'error': 'year must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
         data = get_yearly_summary_report(year)
+        return Response(data)
+
+
+class ProfitAndLossReportAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        if not start_date or not end_date:
+            return Response({'error': 'start_date and end_date are required'}, status=status.HTTP_400_BAD_REQUEST)
+        data = get_profit_and_loss_report(start_date, end_date)
         return Response(data)
