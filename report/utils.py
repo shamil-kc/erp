@@ -508,7 +508,7 @@ def get_profit_and_loss_report(start_date, end_date):
 def get_balance_sheet_report(as_of_date=None):
     """
     Returns a dict with balance sheet data as of a given date.
-    All totals are shown separately (not grouped).
+    All totals are shown separately (not grouped), and lists are included for sundry debtors/creditors.
     """
     from core.models import CapitalAccount
     from banking.models import CashAccount
@@ -561,7 +561,18 @@ def get_balance_sheet_report(as_of_date=None):
     closing_stock = get_total_stock_value(as_of_date)
 
     # Sundry debtors (current assets)
-    sundry_debtors = get_sundry_debtors(as_of_date, currency='aed')
+    sundry_debtors_total = get_sundry_debtors(as_of_date, currency='aed')
+    sundry_debtors_qs = Party.objects.filter(
+        type='customer',
+        sale_invoices__status=SaleInvoice.STATUS_APPROVED,
+        sale_invoices__sale_date__lte=as_of_date
+    ).annotate(
+        total_debt=Sum('sale_invoices__total_with_vat_aed')
+    ).filter(total_debt__gt=0)
+    sundry_debtors_list = [
+        {'party': p.name, 'amount': float(p.total_debt)}
+        for p in sundry_debtors_qs
+    ]
 
     # Cash in hand and bank (main cash account)
     main_cash = CashAccount.objects.filter(type='main').first()
@@ -569,13 +580,24 @@ def get_balance_sheet_report(as_of_date=None):
     cash_in_bank = main_cash.cash_in_bank if main_cash else Decimal('0')
 
     # Current liabilities: amount payable (approved purchases not paid), sundry creditors
-    sundry_creditors = get_sundry_creditors(as_of_date, currency='aed')
+    sundry_creditors_total = get_sundry_creditors(as_of_date, currency='aed')
+    sundry_creditors_qs = Party.objects.filter(
+        type='supplier',
+        purchase_invoices__status=PurchaseInvoice.STATUS_APPROVED,
+        purchase_invoices__purchase_date__lte=as_of_date
+    ).annotate(
+        total_credit=Sum('purchase_invoices__total_with_vat_aed')
+    ).filter(total_credit__gt=0)
+    sundry_creditors_list = [
+        {'party': p.name, 'amount': float(p.total_credit)}
+        for p in sundry_creditors_qs
+    ]
+
     # Amount payable: total of approved purchases minus payments made
     total_purchases = PurchaseInvoice.objects.filter(
         status=PurchaseInvoice.STATUS_APPROVED,
         purchase_date__lte=as_of_date
     ).aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
-    # Payments made for purchases
     from banking.models import PaymentEntry
     payments_made = PaymentEntry.objects.filter(
         invoice_type='purchase',
@@ -595,7 +617,8 @@ def get_balance_sheet_report(as_of_date=None):
         'fixed_assets_total': float(fixed_assets_total),
         'fixed_assets_list': fixed_assets,
         'closing_stock': float(closing_stock),
-        'sundry_debtors': float(sundry_debtors),
+        'sundry_debtors_total': float(sundry_debtors_total),
+        'sundry_debtors_list': sundry_debtors_list,
         'cash_in_hand': float(cash_in_hand),
         'cash_in_bank': float(cash_in_bank),
         'profit_cash_in_hand': float(profit_cash_in_hand),
@@ -604,6 +627,7 @@ def get_balance_sheet_report(as_of_date=None):
         # Liabilities
         'total_capital': float(total_capital),
         'amount_payable': float(amount_payable),
-        'sundry_creditors': float(sundry_creditors),
+        'sundry_creditors_total': float(sundry_creditors_total),
+        'sundry_creditors_list': sundry_creditors_list,
         'profit_and_loss': float(net_profit),
     }
