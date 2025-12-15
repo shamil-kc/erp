@@ -12,6 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .filters import PartyFilter
 from django.db import models
+from rest_framework.pagination import PageNumberPagination
 
 
 class PartyViewSet(viewsets.ModelViewSet):
@@ -260,8 +261,13 @@ class PartyViewSet(viewsets.ModelViewSet):
             grand_total_purchases += total_purchase_amount
             grand_total_payments += total_payments
 
-        return Response({
-            'results': results,
+        # --- Pagination ---
+        paginator = PageNumberPagination()
+        paginator.page_size = int(request.query_params.get('page_size', 20))
+        paginated_results = paginator.paginate_queryset(results, request)
+
+        return paginator.get_paginated_response({
+            'results': paginated_results,
             'grand_totals': {
                 'balance_amount': grand_total_balance,
                 'total_sale_amount': grand_total_sales,
