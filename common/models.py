@@ -181,3 +181,23 @@ class ExtraCharges(models.Model):
 
     def __str__(self):
         return f"ExtraCharge for {self.content_object}"
+
+
+class ExtraPurchase(models.Model):
+    purchase_invoice = models.ForeignKey(
+        'purchase.PurchaseInvoice',
+        on_delete=models.CASCADE,
+        related_name='extra_purchase_entries'  # changed from 'extra_purchases'
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    description = models.TextField(blank=True, null=True)
+    vat = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        verbose_name_plural = "Extra Purchases"
+
+    def __str__(self):
+        return f"ExtraPurchase for {self.purchase_invoice}"

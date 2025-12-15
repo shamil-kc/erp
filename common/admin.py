@@ -41,3 +41,7 @@ class ExtraChargesAdmin(admin.ModelAdmin):
 class WageChargesAdmin(admin.ModelAdmin):
     list_display = ('amount_aed', 'date', 'notes')
     date_hierarchy = 'date'
+
+@admin.register(ExtraPurchase)
+class ExtraPurchaseAdmin(admin.ModelAdmin):
+    list_display = ('description', 'amount', 'vat')

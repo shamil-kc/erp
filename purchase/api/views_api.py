@@ -11,6 +11,8 @@ from purchase.api.serializers import PurchaseReturnItemSerializer
 from inventory.models import Stock
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from common.models import ExtraPurchase
+from purchase.api.serializers import ExtraPurchaseSerializer
 
 
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
@@ -126,3 +128,9 @@ class PurchaseReturnItemViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save()
+
+
+class ExtraPurchaseViewSet(viewsets.ModelViewSet):
+    queryset = ExtraPurchase.objects.all()
+    serializer_class = ExtraPurchaseSerializer
+    permission_classes = [permissions.IsAuthenticated]

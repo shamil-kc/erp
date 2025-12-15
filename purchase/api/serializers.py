@@ -6,7 +6,7 @@ from customer.api.serializers import PartySerializer
 from purchase.models import *
 from banking.models import PaymentEntry
 from inventory.models import Stock
-from common.models import ExtraCharges
+from common.models import ExtraCharges, ExtraPurchase
 from django.contrib.contenttypes.models import ContentType
 
 
@@ -36,12 +36,19 @@ class ExtraChargesSerializer(serializers.ModelSerializer):
         fields = ['id', 'amount', 'description', 'vat', 'created_at', 'modified_at', 'created_by']
 
 
+class ExtraPurchaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExtraPurchase
+        fields = ['id', 'amount', 'description', 'vat', 'created_at', 'modified_at', 'created_by']
+
+
 class PurchaseInvoiceSerializer(serializers.ModelSerializer):
     purchase_items = PurchaseItemSerializer(many=True, read_only=True)
     party = PartySerializer(read_only=True)
     party_id = serializers.PrimaryKeyRelatedField(queryset=Party.objects.all(), source='party', write_only=True)
     has_tax = serializers.BooleanField(required=False)  # Add this field
     extra_charges = ExtraChargesSerializer(many=True, read_only=True)
+    extra_purchases = ExtraPurchaseSerializer(many=True, read_only=True)
     is_payment_started = serializers.BooleanField(required=False)  # <-- Add this field
     class Meta:
         model = PurchaseInvoice
@@ -83,6 +90,7 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
     currency_rate = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     status = serializers.ChoiceField(choices=PurchaseInvoice.STATUS_CHOICES, required=False)
     extra_charges = ExtraChargesSerializer(many=True, write_only=True, required=False)
+    extra_purchases = ExtraPurchaseSerializer(many=True, write_only=True, required=False)
     is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
 
     def validate(self, data):
@@ -101,16 +109,19 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseInvoice
-        fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax',
-                  'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
-                  'currency', 'currency_rate', 'status', 'extra_charges', 'is_payment_started']  # <-- Add here
+        fields = [
+            'invoice_no', 'party_id', 'purchase_date', 'notes',
+            'items', 'discount_usd', 'discount_aed', 'payments', 'has_tax',
+            'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
+            'currency', 'currency_rate', 'status', 'extra_charges', 'extra_purchases', 'is_payment_started'
+        ]  # <-- Add extra_purchases
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         payments_data = validated_data.pop('payments', [])
         has_tax = validated_data.pop('has_tax', True)
         extra_charges_data = validated_data.pop('extra_charges', [])
+        extra_purchases_data = validated_data.pop('extra_purchases', [])
         with transaction.atomic():
             try:
                 invoice = PurchaseInvoice.objects.create(has_tax=has_tax, **validated_data)
@@ -143,6 +154,16 @@ class PurchaseInvoiceCreateSerializer(serializers.ModelSerializer):
                         vat=charge.get('vat', 0),
                         created_by=self.context['request'].user
                     )
+                # create extra purchases if any
+                for purchase in extra_purchases_data:
+                    ep = ExtraPurchase.objects.create(
+                        purchase_invoice=invoice,
+                        amount=purchase.get('amount'),
+                        description=purchase.get('description', ''),
+                        vat=purchase.get('vat', 0),
+                        created_by=self.context['request'].user
+                    )
+                    invoice.extra_purchases.add(ep)
                 invoice.calculate_totals()
             except Exception as e:
                 transaction.set_rollback(True)
@@ -167,18 +188,22 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(choices=PurchaseInvoice.STATUS_CHOICES,
                                      required=False)
     extra_charges = ExtraChargesSerializer(many=True, write_only=True, required=False)
+    extra_purchases = ExtraPurchaseSerializer(many=True, write_only=True, required=False)
     is_payment_started = serializers.BooleanField(required=False, default=False)  # <-- Add this field
     class Meta:
         model = PurchaseInvoice
-        fields = ['invoice_no', 'party_id', 'purchase_date', 'notes',
-                  'items', 'discount_usd', 'discount_aed', 'has_tax', 'status',
-                  'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
-                  'currency', 'currency_rate', 'status', 'extra_charges', 'is_payment_started']  # <-- Add here
+        fields = [
+            'invoice_no', 'party_id', 'purchase_date', 'notes',
+            'items', 'discount_usd', 'discount_aed', 'has_tax', 'status',
+            'has_custom_duty', 'custom_duty_usd_enter', 'custom_duty_aed_enter',
+            'currency', 'currency_rate', 'status', 'extra_charges', 'extra_purchases', 'is_payment_started'
+        ]  # <-- Add extra_purchases
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
         has_tax = validated_data.pop('has_tax', instance.has_tax)
         extra_charges_data = validated_data.pop('extra_charges', None)
+        extra_purchases_data = validated_data.pop('extra_purchases', None)
         with transaction.atomic():
             # Update invoice fields
             for attr, value in validated_data.items():
@@ -237,21 +262,75 @@ class PurchaseInvoiceUpdateSerializer(serializers.ModelSerializer):
                         )
 
             if extra_charges_data is not None:
-                ExtraCharges.objects.filter(
+                # Map existing ExtraCharges by their id
+                from common.models import ExtraCharges
+                existing_charges = {ec.id: ec for ec in ExtraCharges.objects.filter(
                     content_type=ContentType.objects.get_for_model(PurchaseInvoice),
                     object_id=instance.id
-                ).delete()
+                )}
+                sent_charge_ids = [ec.get("id") for ec in extra_charges_data if ec.get("id")]
+
+                # Delete removed extra charges
+                for ec_id in existing_charges:
+                    if ec_id not in sent_charge_ids:
+                        existing_charges[ec_id].delete()
+
+                # Create or update extra charges
                 for charge in extra_charges_data:
-                    ExtraCharges.objects.create(
-                        content_type=ContentType.objects.get_for_model(PurchaseInvoice),
-                        object_id=instance.id,
-                        amount=charge.get('amount'),
-                        description=charge.get('description', ''),
-                        vat=charge.get('vat', 0),
+                    ec_id = charge.get('id', None)
+                    if ec_id and ec_id in existing_charges:
+                        ec_instance = existing_charges[ec_id]
+                        for attr, value in charge.items():
+                            if attr == 'id':
+                                continue
+                            setattr(ec_instance, attr, value)
+                        ec_instance.save()
+                        # No need to re-add for GenericRelation
+                    else:
+                        ExtraCharges.objects.create(
+                            content_type=ContentType.objects.get_for_model(PurchaseInvoice),
+                            object_id=instance.id,
+                            amount=charge.get('amount'),
+                            description=charge.get('description', ''),
+                            vat=charge.get('vat', 0),
+                            created_by=self.context['request'].user
+                        )
+
+        if extra_purchases_data is not None:
+            existing_purchases = {ep.id: ep for ep in instance.extra_purchases.all()}
+            sent_purchase_ids = [ep.get("id") for ep in extra_purchases_data if ep.get("id")]
+
+            # Delete removed extra purchases
+            for ep_id in existing_purchases:
+                if ep_id not in sent_purchase_ids:
+                    ep = existing_purchases[ep_id]
+                    instance.extra_purchases.remove(ep)
+                    ep.delete()
+
+            # Create or update extra purchases
+            for purchase_data in extra_purchases_data:
+                ep_id = purchase_data.get('id', None)
+                if ep_id and ep_id in existing_purchases:
+                    ep_instance = existing_purchases[ep_id]
+                    for attr, value in purchase_data.items():
+                        if attr == 'id':
+                            continue
+                        setattr(ep_instance, attr, value)
+                    ep_instance.save()
+                    # Ensure the updated instance is still in the M2M relation
+                    if ep_instance not in instance.extra_purchases.all():
+                        instance.extra_purchases.add(ep_instance)
+                else:
+                    ep = ExtraPurchase.objects.create(
+                        purchase_invoice=instance,
+                        amount=purchase_data.get('amount'),
+                        description=purchase_data.get('description', ''),
+                        vat=purchase_data.get('vat', 0),
                         created_by=self.context['request'].user
                     )
+                    instance.extra_purchases.add(ep)
 
-            instance.calculate_totals()
+        instance.calculate_totals()
 
         return instance
 
