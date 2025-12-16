@@ -172,80 +172,111 @@ def get_yearly_summary_report(year):
     - purchase_qty, purchase_amount
     - grand totals for the year
     """
-    months = []
     from products.models import ProductItem
     from inventory.models import Stock
 
-    def total_stock(as_of_date):
-        total = 0
-        for item in ProductItem.objects.all():
-            total += get_closing_stock(item, as_of_date, with_null_invoice=False)
-        purchased_items = PurchaseItem.objects.filter(invoice__isnull=True).values_list('item_id', flat=True).distinct()
-        if purchased_items:
-            for item_id in purchased_items:
-                stock_qty = Stock.objects.filter(product_item_id=item_id).aggregate(total=Sum('quantity'))['total'] or 0
-                total += stock_qty
-        return total
-
-    def closing_stock_amount(as_of_date):
-        """
-        Calculate the total value (amount_aed) of closing stock as of a date.
-        Uses latest purchase price for each item in stock.
-        """
-        total_amount = 0
-        from products.models import ProductItem
-        from purchase.models import PurchaseItem, PurchaseInvoice
-        for item in ProductItem.objects.all():
-            qty = get_closing_stock(item, as_of_date, with_null_invoice=False)
-            if qty > 0:
-                # Get latest purchase price (amount_aed) for this item before as_of_date
-                latest_purchase = PurchaseItem.objects.filter(
-                    item=item,
-                    invoice__purchase_date__lte=as_of_date,
-                    invoice__status=PurchaseInvoice.STATUS_APPROVED
-                ).order_by('-invoice__purchase_date', '-pk').first()
-                price = latest_purchase.amount_aed if latest_purchase else 0
-                total_amount += qty * float(price)
-        # Add orphan stock (items with stock but no purchase invoice)
-        purchased_items = PurchaseItem.objects.filter(invoice__isnull=True).values_list('total_price_aed', flat=True)
-        total_amount += float(sum(purchased_items))
-        return total_amount
-
-    def opening_stock_amount(as_of_date):
-        """
-        Calculate the total value (amount_aed) of opening stock as of a date.
-        Uses latest purchase price for each item before as_of_date.
-        """
-        total_amount = 0
-        from products.models import ProductItem
-        from purchase.models import PurchaseItem, PurchaseInvoice
-        for item in ProductItem.objects.all():
-            qty = get_closing_stock(item, as_of_date - timedelta(days=1), with_null_invoice=False)
-            if qty > 0:
-                # Get latest purchase price (amount_aed) for this item before as_of_date
-                latest_purchase = PurchaseItem.objects.filter(
-                    item=item,
-                    invoice__purchase_date__lte=as_of_date,
-                    invoice__status=PurchaseInvoice.STATUS_APPROVED
-                ).order_by('-invoice__purchase_date', '-pk').first()
-                price = latest_purchase.amount_aed if latest_purchase else 0
-                total_amount += qty * float(price)
-        # Add orphan stock (items with stock but no purchase invoice)
-        purchased_items = PurchaseItem.objects.filter(invoice__isnull=True).values_list('total_price_aed', flat=True)
-        total_amount += float(sum(purchased_items))
-        return total_amount
-
-    # Prepare month boundaries
     year = int(year)
     monthly_data = []
+
+    # Prefetch all product items and their stocks
+    product_items = list(ProductItem.objects.all())
+    product_item_ids = [item.id for item in product_items]
+    stocks = {s.product_item_id: s.quantity for s in Stock.objects.filter(product_item_id__in=product_item_ids)}
+    # Prefetch all orphan purchase items (no invoice)
+    orphan_purchase_items = list(PurchaseItem.objects.filter(invoice__isnull=True))
+    orphan_purchase_item_amounts = sum([float(p.total_price_aed or 0) for p in orphan_purchase_items])
+    orphan_purchase_item_qty = sum([float(p.qty or 0) for p in orphan_purchase_items])
+
+    # Helper: get all purchase/sale items for all products up to a date, grouped by item_id
+    def get_qty_dict(model, date_field, status_field, status_value, item_field, date_limit):
+        qs = model.objects.filter(
+            **{f"{status_field}": status_value, f"{date_field}__lte": date_limit}
+        ).values(item_field).annotate(total=Sum('qty'))
+        return {row[item_field]: row['total'] or 0 for row in qs}
+
+    def get_qty_dict_lt(model, date_field, status_field, status_value, item_field, date_limit):
+        qs = model.objects.filter(
+            **{f"{status_field}": status_value, f"{date_field}__lt": date_limit}
+        ).values(item_field).annotate(total=Sum('qty'))
+        return {row[item_field]: row['total'] or 0 for row in qs}
+
+    # Helper: get latest purchase price for all items up to a date
+    def get_latest_purchase_price_dict(as_of_date):
+        latest_prices = {}
+        # Get all purchases up to as_of_date, order by date desc, id desc
+        purchases = PurchaseItem.objects.filter(
+            invoice__purchase_date__lte=as_of_date,
+            invoice__status=PurchaseInvoice.STATUS_APPROVED
+        ).order_by('item_id', '-invoice__purchase_date', '-pk')
+        seen = set()
+        for p in purchases:
+            if p.item_id not in seen:
+                latest_prices[p.item_id] = float(p.amount_aed or 0)
+                seen.add(p.item_id)
+        return latest_prices
+
+    # Helper: get closing stock qty for all items as of a date
+    def get_closing_stock_dict(as_of_date):
+        purchased = get_qty_dict(PurchaseItem, 'invoice__purchase_date', 'invoice__status', PurchaseInvoice.STATUS_APPROVED, 'item_id', as_of_date)
+        sold = get_qty_dict(SaleItem, 'invoice__sale_date', 'invoice__status', SaleInvoice.STATUS_APPROVED, 'item_id', as_of_date)
+        closing = {}
+        for item in product_items:
+            pid = item.id
+            closing[pid] = (purchased.get(pid, 0) - sold.get(pid, 0))
+        # Add orphan stock
+        for p in orphan_purchase_items:
+            closing[p.item_id] = closing.get(p.item_id, 0) + (stocks.get(p.item_id, 0))
+        return closing
+
+    # Helper: get opening stock qty for all items as of a date
+    def get_opening_stock_dict(as_of_date):
+        purchased = get_qty_dict_lt(PurchaseItem, 'invoice__purchase_date', 'invoice__status', PurchaseInvoice.STATUS_APPROVED, 'item_id', as_of_date)
+        sold = get_qty_dict_lt(SaleItem, 'invoice__sale_date', 'invoice__status', SaleInvoice.STATUS_APPROVED, 'item_id', as_of_date)
+        opening = {}
+        for item in product_items:
+            pid = item.id
+            opening[pid] = (purchased.get(pid, 0) - sold.get(pid, 0))
+        # Add orphan stock
+        for p in orphan_purchase_items:
+            opening[p.item_id] = opening.get(p.item_id, 0) + (stocks.get(p.item_id, 0))
+        return opening
+
+    # Helper: total stock qty as of a date
+    def total_stock(as_of_date):
+        closing = get_closing_stock_dict(as_of_date)
+        return sum(closing.values())
+
+    # Helper: total stock amount as of a date
+    def total_stock_amount(as_of_date):
+        closing = get_closing_stock_dict(as_of_date)
+        latest_prices = get_latest_purchase_price_dict(as_of_date)
+        total = 0
+        for pid, qty in closing.items():
+            price = latest_prices.get(pid, 0)
+            if qty > 0:
+                total += qty * price
+        total += orphan_purchase_item_amounts
+        return total
+
+    def opening_stock_amount(as_of_date):
+        opening = get_opening_stock_dict(as_of_date)
+        latest_prices = get_latest_purchase_price_dict(as_of_date)
+        total = 0
+        for pid, qty in opening.items():
+            price = latest_prices.get(pid, 0)
+            if qty > 0:
+                total += qty * price
+        total += orphan_purchase_item_amounts
+        return total
+
+    # Prepare month boundaries
     for m in range(1, 13):
         month_start = date(year, m, 1)
         month_end = date(year, m, monthrange(year, m)[1])
 
-        # Opening stock is closing stock of previous day
         opening_stock = total_stock(month_start - timedelta(days=1))
         closing_stock = total_stock(month_end)
-        closing_stock_amt = closing_stock_amount(month_end)
+        closing_stock_amt = total_stock_amount(month_end)
         opening_stock_amt = opening_stock_amount(month_end)
 
         # Sales
@@ -287,7 +318,7 @@ def get_yearly_summary_report(year):
     year_end = date(year, 12, 31)
     opening_stock_year = total_stock(year_start - timedelta(days=1))
     closing_stock_year = total_stock(year_end)
-    closing_stock_amount_year = closing_stock_amount(year_end)
+    closing_stock_amount_year = total_stock_amount(year_end)
     opening_stock_amount_year = opening_stock_amount(year_end)
 
     sales_qs_year = SaleInvoice.objects.filter(
