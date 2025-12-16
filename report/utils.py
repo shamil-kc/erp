@@ -241,12 +241,13 @@ def get_yearly_summary_report(year):
             opening[p.item_id] = opening.get(p.item_id, 0) + (stocks.get(p.item_id, 0))
         return opening
 
-    # Helper: total stock qty as of a date
+    # Helper: total stock qty as of a date (includes orphan_purchase_item_qty)
     def total_stock(as_of_date):
         closing = get_closing_stock_dict(as_of_date)
-        return sum(closing.values())
+        # Add orphan_purchase_item_qty to total stock count
+        return sum(closing.values()) + orphan_purchase_item_qty
 
-    # Helper: total stock amount as of a date
+    # Helper: total stock amount as of a date (includes orphan_purchase_item_amounts)
     def total_stock_amount(as_of_date):
         closing = get_closing_stock_dict(as_of_date)
         latest_prices = get_latest_purchase_price_dict(as_of_date)
