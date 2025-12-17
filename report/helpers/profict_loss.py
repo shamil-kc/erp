@@ -1,5 +1,6 @@
 from purchase.models import PurchaseInvoice, PurchaseItem
-from sale.models import SaleInvoice, SaleItem
+from sale.models import SaleInvoice, SaleItem, SaleReturnItem, SaleReturnItemEntry
+from purchase.models import PurchaseReturnItemEntry, PurchaseReturnItem
 from common.models import Expense, Wage, Commission, ServiceFee, ExtraCharges,Asset, ExpenseType
 from employee.models import SalaryEntry
 from inventory.models import Stock
@@ -158,6 +159,24 @@ def get_profit_and_loss_report(start_date, end_date):
         for c in creditors
     ]
 
+    # --- Sales Return ---
+    sales_return_entries = SaleReturnItemEntry.objects.filter(
+        sale_return__return_date__gte=start_date,
+        sale_return__return_date__lte=end_date
+    )
+    sales_return_aed = sales_return_entries.aggregate(
+        total=Sum('sale_item__amount_aed')
+    )['total'] or Decimal('0')
+
+    # --- Purchase Return ---
+    purchase_return_entries = PurchaseReturnItemEntry.objects.filter(
+        purchase_return__return_date__gte=start_date,
+        purchase_return__return_date__lte=end_date
+    )
+    purchase_return_aed = purchase_return_entries.aggregate(
+        total=Sum('purchase_item__amount_aed')
+    )['total'] or Decimal('0')
+
     # Net Profit Calculation
     gross_profit = (total_sales_without_vat_aed + closing_stock_aed) - (total_purchase_without_vat_aed + opening_stock_aed)
     net_profit = gross_profit - (direct_expenses_aed + indirect_expenses_aed + total_wages_aed + total_salary_aed + total_commission_aed)
@@ -174,6 +193,7 @@ def get_profit_and_loss_report(start_date, end_date):
             'vat_aed': float(total_purchase_vat_aed),
             'discount_aed': float(total_purchase_discount_aed),
             'shipping_aed': float(purchase_shipping_aed),
+            'purchase_return_aed': float(purchase_return_aed),
         },
         'sales': {
             'total_with_vat_aed': float(total_sales_with_vat_aed),
@@ -181,6 +201,7 @@ def get_profit_and_loss_report(start_date, end_date):
             'vat_aed': float(total_sales_vat_aed),
             'discount_aed': float(total_sales_discount_aed),
             'shipping_aed': float(sales_shipping_aed),
+            'sales_return_aed': float(sales_return_aed),
         },
         'expenses': {
             'direct_expenses_aed': float(direct_expenses_aed),
