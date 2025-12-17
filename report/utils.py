@@ -1,11 +1,8 @@
 from decimal import Decimal
-
 from django.db.models import Sum, Q
 from purchase.models import PurchaseInvoice, PurchaseItem
 from sale.models import SaleInvoice, SaleItem
 from customer.models import Party
-from datetime import date, timedelta
-from calendar import monthrange
 
 
 def get_opening_stock(item, start_date, with_null_invoice=False):
@@ -162,4 +159,3 @@ def get_sundry_creditors_by_party(as_of_date, currency='usd'):
     ).annotate(
         total_credit=Sum(f'purchase_invoices__{currency_field}')
     ).filter(total_credit__gt=0)
-
