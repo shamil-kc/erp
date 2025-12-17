@@ -7,6 +7,7 @@ from inventory.models import Stock
 from products.models import ProductItem
 from django.db.models import Sum, Q
 from decimal import Decimal
+from datetime import timedelta, date, datetime
 
 
 
@@ -16,6 +17,12 @@ def get_profit_and_loss_report(start_date, end_date):
     Includes: purchase, sale, direct/indirect expenses (type-wise), opening/closing stock,
     service fees, commission, wage, extra charges, salary, assets, liabilities.
     """
+
+    # Convert string dates to date objects if necessary
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
     # Purchases
     purchase_invoices = PurchaseInvoice.objects.filter(
@@ -106,26 +113,32 @@ def get_profit_and_loss_report(start_date, end_date):
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
     total_extra_charges_aed = extra_charges_sales + extra_charges_purchase
 
-    # Opening Stock (as of start_date)
-    def get_total_stock_value(as_of_date):
-        total = Decimal('0')
-        for item in ProductItem.objects.all():
-            # Get closing stock qty as of as_of_date
-            from report.utils import get_closing_stock
-            qty = get_closing_stock(item, as_of_date)
-            if qty > 0:
-                # Get latest purchase price (amount_aed) for this item before as_of_date
-                latest_purchase = PurchaseItem.objects.filter(
-                    item=item,
-                    invoice__purchase_date__lte=as_of_date,
-                    invoice__status=PurchaseInvoice.STATUS_APPROVED
-                ).order_by('-invoice__purchase_date', '-pk').first()
-                price = latest_purchase.amount_aed if latest_purchase else Decimal('0')
-                total += qty * price
-        return total
+    # --- Opening/Closing Stock Calculation (same logic as get_yearly_summary_report) ---
 
-    opening_stock_aed = get_total_stock_value(start_date)
-    closing_stock_aed = get_total_stock_value(end_date)
+    def get_total_stock_qty_and_amount(as_of_date):
+        purchases = PurchaseItem.objects.filter(
+            Q(invoice__status=PurchaseInvoice.STATUS_APPROVED, invoice__purchase_date__lte=as_of_date) |
+            Q(invoice__isnull=True)
+        )
+        total_purchased_qty = purchases.aggregate(total=Sum('qty'))['total'] or 0
+        total_purchased_amount = purchases.aggregate(total=Sum('total_price_aed'))['total'] or Decimal('0')
+
+        sales = SaleItem.objects.filter(
+            invoice__status=SaleInvoice.STATUS_APPROVED,
+            invoice__sale_date__lte=as_of_date
+        )
+        sales_qty = sales.aggregate(total=Sum('qty'))['total'] or 0
+
+        closing_qty = total_purchased_qty - sales_qty
+        closing_amount = Decimal('0')
+        if total_purchased_qty > 0:
+            closing_amount = total_purchased_amount * (Decimal(str(closing_qty)) / Decimal(str(total_purchased_qty)))
+        return closing_qty, closing_amount
+
+    # Opening stock as of day before start_date
+    opening_stock_qty, opening_stock_aed = get_total_stock_qty_and_amount(start_date - timedelta(days=1))
+    # Closing stock as of end_date
+    closing_stock_qty, closing_stock_aed = get_total_stock_qty_and_amount(end_date)
 
     # Assets
     assets = Asset.objects.all()
@@ -221,7 +234,9 @@ def get_profit_and_loss_report(start_date, end_date):
             'extra_charges_aed': float(total_extra_charges_aed),
         },
         'stock': {
+            'opening_stock_qty': opening_stock_qty,
             'opening_stock_aed': float(opening_stock_aed),
+            'closing_stock_qty': closing_stock_qty,
             'closing_stock_aed': float(closing_stock_aed),
         },
         'profit': {
