@@ -136,9 +136,9 @@ def get_profit_and_loss_report(start_date, end_date):
             invoice__sale_date__lte=as_of_date
         )
         sales_qty = sales.aggregate(total=Sum('qty'))['total'] or 0
-        total_sales_vat = sales.aggregate(total=Sum('vat_amount_aed'))[
+        total_sales_vat = sales.aggregate(total=Sum('vat_total_aed'))[
                                  'total'] or Decimal('0')
-        total_sales_amnt = sales.aggregate(total=Sum('total_with_vat_aed'))[
+        total_sales_amnt = sales.aggregate(total=Sum('total_price_aed'))[
                              'total'] or Decimal('0')
         total_sales_amount = total_sales_amnt - total_sales_vat
 
