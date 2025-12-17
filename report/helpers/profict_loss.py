@@ -35,7 +35,11 @@ def get_profit_and_loss_report(start_date, end_date):
     purchase_ids = list(purchase_invoices.values_list('id', flat=True))
     purchase_shipping_aed = PurchaseItem.objects.filter(invoice_id__in=purchase_ids).aggregate(
         total=Sum('shipping_total_aed'))['total'] or Decimal('0')
-    total_purchase_without_vat_aed = total_purchase_with_vat_aed - total_purchase_vat_aed - purchase_shipping_aed
+    custom_duty_aed = PurchaseItem.objects.filter(invoice_id__in=purchase_ids).aggregate(
+        total=Sum('custom_duty_aed_total'))['total'] or Decimal('0')
+    total_purchase_without_vat_aed = (total_purchase_with_vat_aed -
+                                      total_purchase_vat_aed -
+                                      purchase_shipping_aed - custom_duty_aed)
     total_purchase_discount_aed = purchase_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
 
 
@@ -209,6 +213,7 @@ def get_profit_and_loss_report(start_date, end_date):
             'discount_aed': float(total_purchase_discount_aed),
             'total_shipping_aed': float(purchase_shipping_aed),
             'purchase_return_aed': float(purchase_return_aed),
+            'total_custom_duty_aed': float(custom_duty_aed)
         },
         'sales': {
             'total_with_vat_aed': float(total_sales_with_vat_aed),
