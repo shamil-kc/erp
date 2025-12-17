@@ -133,7 +133,8 @@ def get_profit_and_loss_report(start_date, end_date):
 
         sales = SaleItem.objects.filter(
             invoice__status=SaleInvoice.STATUS_APPROVED,
-            invoice__sale_date__lte=as_of_date
+            invoice__sale_date__lte=as_of_date,
+            purchase_item__in=purchases
         )
         sales_qty = sales.aggregate(total=Sum('qty'))['total'] or 0
         total_sales_amount = sales.aggregate(total=Sum(
