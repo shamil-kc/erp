@@ -34,7 +34,7 @@ def get_profit_and_loss_report(start_date, end_date):
     total_purchase_vat_aed = purchase_invoices.aggregate(total=Sum('vat_amount_aed'))['total'] or Decimal('0')
     purchase_ids = list(purchase_invoices.values_list('id', flat=True))
     purchase_shipping_aed = PurchaseItem.objects.filter(invoice_id__in=purchase_ids).aggregate(
-        total=Sum('shipping_per_unit_aed'))['total'] or Decimal('0')
+        total=Sum('shipping_total_aed'))['total'] or Decimal('0')
     total_purchase_without_vat_aed = total_purchase_with_vat_aed - total_purchase_vat_aed - purchase_shipping_aed
     total_purchase_discount_aed = purchase_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
 
