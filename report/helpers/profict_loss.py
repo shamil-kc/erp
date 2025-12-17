@@ -89,7 +89,8 @@ def get_profit_and_loss_report(start_date, end_date):
     total_sales_with_vat_aed = sales_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
     total_sales_vat_aed = sales_invoices.aggregate(total=Sum('vat_amount_aed'))['total'] or Decimal('0')
     total_sales_without_vat_aed = (total_sales_with_vat_aed -
-                                   total_sales_vat_aed) - total_service_fees_aed
+                                   total_sales_vat_aed -
+                                   total_service_fees_aed)
     total_sales_discount_aed = sales_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
     sales_ids = list(sales_invoices.values_list('id', flat=True))
     sales_shipping_aed = SaleItem.objects.filter(invoice_id__in=sales_ids).aggregate(
