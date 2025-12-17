@@ -136,11 +136,15 @@ def get_profit_and_loss_report(start_date, end_date):
             invoice__sale_date__lte=as_of_date
         )
         sales_qty = sales.aggregate(total=Sum('qty'))['total'] or 0
+        total_sales_amount = sales.aggregate(total=Sum('total_price_aed'))['total'] or Decimal('0')
 
         closing_qty = total_purchased_qty - sales_qty
+        # Closing amount is purchase price minus sale price for remaining stock
         closing_amount = Decimal('0')
         if total_purchased_qty > 0:
-            closing_amount = total_purchased_amount * (Decimal(str(closing_qty)) / Decimal(str(total_purchased_qty)))
+            avg_purchase_price = total_purchased_amount / Decimal(str(total_purchased_qty))
+            avg_sale_price = (total_sales_amount / Decimal(str(sales_qty))) if sales_qty else Decimal('0')
+            closing_amount = (avg_purchase_price - avg_sale_price) * Decimal(str(closing_qty))
         return closing_qty, closing_amount
 
     # Opening stock as of day before start_date
