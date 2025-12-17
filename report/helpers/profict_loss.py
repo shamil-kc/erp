@@ -137,7 +137,7 @@ def get_profit_and_loss_report(start_date, end_date):
         )
         sales_qty = sales.aggregate(total=Sum('qty'))['total'] or 0
         total_sales_amount = sales.aggregate(total=Sum(
-            'total_price_aed'))['total'] or Decimal('0')
+            'purchase_item__total_price_aed'))['total'] or Decimal('0')
 
         closing_qty = total_purchased_qty - sales_qty
         # Closing amount is purchase price minus sale price for remaining stock
