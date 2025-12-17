@@ -24,6 +24,42 @@ def get_profit_and_loss_report(start_date, end_date):
     if isinstance(end_date, str):
         end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
+    # other amounts
+    # Wages
+    total_wages_aed = \
+    Wage.objects.filter(date__gte=start_date, date__lte=end_date).aggregate(
+        total=Sum('amount_aed'))['total'] or Decimal('0')
+
+    # Salary
+    total_salary_aed = SalaryEntry.objects.filter(date__gte=start_date,
+        date__lte=end_date).aggregate(total=Sum('amount_aed'))[
+                           'total'] or Decimal('0')
+
+    # Service Fees
+    total_service_fees_aed = \
+    ServiceFee.objects.filter(sales_invoice__sale_date__gte=start_date,
+        sales_invoice__sale_date__lte=end_date).aggregate(
+        total=Sum('amount_aed'))['total'] or Decimal('0')
+
+    # Commission
+    total_commission_aed = \
+    Commission.objects.filter(sales_invoice__sale_date__gte=start_date,
+        sales_invoice__sale_date__lte=end_date).aggregate(
+        total=Sum('amount_aed'))['total'] or Decimal('0')
+
+    # Extra Charges (for sales and purchases)
+    extra_charges_sales = \
+    ExtraCharges.objects.filter(content_type__model='saleinvoice',
+        sale_invoices__sale_date__gte=start_date,
+        sale_invoices__sale_date__lte=end_date).aggregate(total=Sum('amount'))[
+        'total'] or Decimal('0')
+    extra_charges_purchase = \
+    ExtraCharges.objects.filter(content_type__model='purchaseinvoice',
+        purchase_invoices__purchase_date__gte=start_date,
+        purchase_invoices__purchase_date__lte=end_date).aggregate(
+        total=Sum('amount'))['total'] or Decimal('0')
+    total_extra_charges_aed = extra_charges_sales + extra_charges_purchase
+
     # Purchases
     purchase_invoices = PurchaseInvoice.objects.filter(
         status=PurchaseInvoice.STATUS_APPROVED,
@@ -52,7 +88,8 @@ def get_profit_and_loss_report(start_date, end_date):
     )
     total_sales_with_vat_aed = sales_invoices.aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
     total_sales_vat_aed = sales_invoices.aggregate(total=Sum('vat_amount_aed'))['total'] or Decimal('0')
-    total_sales_without_vat_aed = total_sales_with_vat_aed - total_sales_vat_aed
+    total_sales_without_vat_aed = (total_sales_with_vat_aed -
+                                   total_sales_vat_aed) - total_service_fees_aed
     total_sales_discount_aed = sales_invoices.aggregate(total=Sum('discount_aed'))['total'] or Decimal('0')
     sales_ids = list(sales_invoices.values_list('id', flat=True))
     sales_shipping_aed = SaleItem.objects.filter(invoice_id__in=sales_ids).aggregate(
@@ -82,42 +119,6 @@ def get_profit_and_loss_report(start_date, end_date):
         indirect_expenses_qs.values('type__name').annotate(total=Sum('amount_aed'))
     )
 
-    # Wages
-    total_wages_aed = Wage.objects.filter(
-        date__gte=start_date,
-        date__lte=end_date
-    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-
-    # Salary
-    total_salary_aed = SalaryEntry.objects.filter(
-        date__gte=start_date,
-        date__lte=end_date
-    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-
-    # Service Fees
-    total_service_fees_aed = ServiceFee.objects.filter(
-        sales_invoice__sale_date__gte=start_date,
-        sales_invoice__sale_date__lte=end_date
-    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-
-    # Commission
-    total_commission_aed = Commission.objects.filter(
-        sales_invoice__sale_date__gte=start_date,
-        sales_invoice__sale_date__lte=end_date
-    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
-
-    # Extra Charges (for sales and purchases)
-    extra_charges_sales = ExtraCharges.objects.filter(
-        content_type__model='saleinvoice',
-        sale_invoices__sale_date__gte=start_date,
-        sale_invoices__sale_date__lte=end_date
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    extra_charges_purchase = ExtraCharges.objects.filter(
-        content_type__model='purchaseinvoice',
-        purchase_invoices__purchase_date__gte=start_date,
-        purchase_invoices__purchase_date__lte=end_date
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    total_extra_charges_aed = extra_charges_sales + extra_charges_purchase
 
     # --- Opening/Closing Stock Calculation (same logic as get_yearly_summary_report) ---
 
