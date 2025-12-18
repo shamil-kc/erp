@@ -69,18 +69,18 @@ def get_yearly_summary_report(year):
         purchase_qty = purchases.aggregate(total=Sum('qty'))['total'] or 0
         purchase_amount = purchases.aggregate(total=Sum('total_price_aed'))['total'] or 0
 
-        # Orphan purchases created in this month (no invoice)
-        orphan_purchases = PurchaseItem.objects.filter(
-            invoice__isnull=True,
-            created_at__date__gte=month_start,
-            created_at__date__lte=month_end
-        )
-        orphan_purchase_qty = orphan_purchases.aggregate(total=Sum('qty'))['total'] or 0
-        orphan_purchase_amount = orphan_purchases.aggregate(total=Sum('total_price_aed'))['total'] or 0
-
-        # Add orphan purchases to this month's purchase totals
-        purchase_qty += orphan_purchase_qty
-        purchase_amount += orphan_purchase_amount
+        # # Orphan purchases created in this month (no invoice)
+        # orphan_purchases = PurchaseItem.objects.filter(
+        #     invoice__isnull=True,
+        #     created_at__date__gte=month_start,
+        #     created_at__date__lte=month_end
+        # )
+        # orphan_purchase_qty = orphan_purchases.aggregate(total=Sum('qty'))['total'] or 0
+        # orphan_purchase_amount = orphan_purchases.aggregate(total=Sum('total_price_aed'))['total'] or 0
+        #
+        # # Add orphan purchases to this month's purchase totals
+        # purchase_qty += orphan_purchase_qty
+        # purchase_amount += orphan_purchase_amount
 
         # Sales in this month (approved invoices only)
         sales = SaleItem.objects.filter(
