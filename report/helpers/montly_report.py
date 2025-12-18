@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from calendar import monthrange
 from purchase.models import PurchaseInvoice, PurchaseItem
 from sale.models import SaleInvoice, SaleItem
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, F
 from decimal import Decimal
 
 def get_yearly_summary_report(year):
@@ -35,12 +35,15 @@ def get_yearly_summary_report(year):
             invoice__sale_date__lte=as_of_date
         )
         sales_qty = sales.aggregate(total=Sum('qty'))['total'] or 0
+        total_sales_amount = sales.aggregate(
+            total=Sum(F('qty') * F('purchase_item__unit_price_aed'))
+        )['total'] or Decimal('0')
 
         # Stock and amount after sales
         closing_qty = total_purchased_qty - sales_qty
         closing_amount = Decimal('0')
         if total_purchased_qty > 0:
-            closing_amount = total_purchased_amount * (Decimal(str(closing_qty)) / Decimal(str(total_purchased_qty)))
+            closing_amount = total_purchased_amount - total_sales_amount
         return closing_qty, closing_amount
 
     # Get previous year closing as opening for this year
