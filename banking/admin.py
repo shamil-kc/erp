@@ -2,6 +2,10 @@ from django.contrib import admin
 from .models import *
 
 
+@admin.register(CashTransaction)
+class CashTransactionAdmin(admin.ModelAdmin):
+    list_display = ('transaction_type', 'amount', 'created_at', 'created_by')
+
 @admin.register(CashAccount)
 class CashAccountAdmin(admin.ModelAdmin):
     list_display = ('__str__',)

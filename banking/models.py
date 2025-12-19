@@ -3,6 +3,29 @@ from django.contrib.auth.models import User
 from customer.models import Party
 
 
+class CashTransaction(models.Model):
+    TRANSACTION_TYPE_CHOICES = (
+        ('deposit', 'Deposit'),
+        ('withdraw', 'Withdraw'),
+        ('transfer', 'Transfer'),
+    )
+    cash_account = models.ForeignKey('CashAccount', on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    account_type = models.CharField(max_length=20, choices=(('cash_in_hand', 'Cash in Hand'), ('cash_in_bank', 'Cash in Bank'), ('cash_in_check', 'Check Cash')))
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    related_account = models.ForeignKey('CashAccount', null=True, blank=True, on_delete=models.SET_NULL, related_name='related_transactions')
+    related_account_type = models.CharField(max_length=20, blank=True, null=True)
+    note = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = "Cash Transactions"
+
+    def __str__(self):
+        return f"{self.transaction_type} {self.amount} {self.account_type} ({self.cash_account})"
+
+
 class PaymentEntry(models.Model):
     PAYMENT_TYPE_CHOICES = (('hand', 'Cash'), ('bank', 'Bank'),
                             ('check', 'Check'),)
@@ -48,7 +71,7 @@ class CashAccount(models.Model):
         default='main', unique=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def deposit(self, amount, account_type):
+    def deposit(self, amount, account_type, created_by=None, note=None):
         if account_type == 'cash_in_hand':
             self.cash_in_hand += amount
         elif account_type == 'cash_in_bank':
@@ -58,8 +81,19 @@ class CashAccount(models.Model):
         else:
             raise ValueError("Invalid account type")
         self.save()
+        try:
+            CashTransaction.objects.create(
+                cash_account=self,
+                transaction_type='deposit',
+                account_type=account_type,
+                amount=amount,
+                created_by=created_by,
+                note=note
+            )
+        except:
+            print("Error creating CashTransaction:")
 
-    def withdraw(self, amount, account_type):
+    def withdraw(self, amount, account_type, created_by=None, note=None):
         if account_type == 'cash_in_hand':
             self.cash_in_hand -= amount
         elif account_type == 'cash_in_bank':
@@ -69,12 +103,36 @@ class CashAccount(models.Model):
         else:
             raise ValueError("Invalid account type")
         self.save()
+        try:
+            CashTransaction.objects.create(
+                cash_account=self,
+                transaction_type='withdraw',
+                account_type=account_type,
+                amount=amount,
+                created_by=created_by,
+                note=note
+            )
+        except:
+            print("Error creating CashTransaction:")
 
-    def transfer(self, from_type, to_type, amount):
+    def transfer(self, from_type, to_type, amount, created_by=None, note=None):
         if from_type == to_type:
             raise ValueError("Cannot transfer to the same account type!")
-        self.withdraw(amount, from_type)
-        self.deposit(amount, to_type)
+        self.withdraw(amount, from_type, created_by=created_by, note=note)
+        self.deposit(amount, to_type, created_by=created_by, note=note)
+        try:
+            CashTransaction.objects.create(
+                cash_account=self,
+                transaction_type='transfer',
+                account_type=from_type,
+                amount=amount,
+                related_account=self,
+                related_account_type=to_type,
+                created_by=created_by,
+                note=note
+            )
+        except:
+            print("Error creating CashTransaction:")
 
     def __str__(self):
         return f"CashAccount — Cash: ₹{self.cash_in_hand}, Bank: ₹{self.cash_in_bank}, Check: ₹{self.check_cash}"

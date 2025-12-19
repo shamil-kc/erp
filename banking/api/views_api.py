@@ -27,22 +27,23 @@ class PaymentEntryViewSet(viewsets.ModelViewSet):
         instance = serializer.save(created_by=self.request.user)
         cash_account = CashAccount.objects.first()
         if cash_account:
+            note = f"PaymentEntry #{instance.id} ({instance.invoice_type})"
             # For sale invoices, deposit money into appropriate account
             if instance.invoice_type == 'sale':
                 if instance.payment_type == 'hand':
-                    cash_account.deposit(instance.amount, 'cash_in_hand')
+                    cash_account.deposit(instance.amount, 'cash_in_hand', created_by=self.request.user, note=note)
                 elif instance.payment_type == 'bank':
-                    cash_account.deposit(instance.amount, 'cash_in_bank')
+                    cash_account.deposit(instance.amount, 'cash_in_bank', created_by=self.request.user, note=note)
                 elif instance.payment_type == 'check':
-                    cash_account.deposit(instance.amount, 'cash_in_check')
+                    cash_account.deposit(instance.amount, 'cash_in_check', created_by=self.request.user, note=note)
             # For purchase invoices, withdraw money from appropriate account
             elif instance.invoice_type == 'purchase':
                 if instance.payment_type == 'hand':
-                    cash_account.withdraw(instance.amount, 'cash_in_hand')
+                    cash_account.withdraw(instance.amount, 'cash_in_hand', created_by=self.request.user, note=note)
                 elif instance.payment_type == 'bank':
-                    cash_account.withdraw(instance.amount, 'cash_in_bank')
+                    cash_account.withdraw(instance.amount, 'cash_in_bank', created_by=self.request.user, note=note)
                 elif instance.payment_type == 'check':
-                    cash_account.deposit(instance.amount, 'cash_in_check')
+                    cash_account.deposit(instance.amount, 'cash_in_check', created_by=self.request.user, note=note)
 
     def perform_update(self, serializer):
         old_instance = self.get_object()
@@ -57,37 +58,38 @@ class PaymentEntryViewSet(viewsets.ModelViewSet):
             cash_account = CashAccount.objects.first()
             if cash_account:
                 with transaction.atomic():
+                    note = f"PaymentEntry Update #{instance.id} ({instance.invoice_type})"
                     # Reverse the previous transaction
                     if old_instance.invoice_type == 'sale':
                         if old_payment_type == 'hand':
-                            cash_account.withdraw(old_amount, 'cash_in_hand')
+                            cash_account.withdraw(old_amount, 'cash_in_hand', created_by=self.request.user, note=note)
                         elif old_payment_type == 'bank':
-                            cash_account.withdraw(old_amount, 'cash_in_bank')
+                            cash_account.withdraw(old_amount, 'cash_in_bank', created_by=self.request.user, note=note)
                         elif old_payment_type == 'check':
-                            cash_account.withdraw(old_amount, 'cash_in_check')
+                            cash_account.withdraw(old_amount, 'cash_in_check', created_by=self.request.user, note=note)
                     elif old_instance.invoice_type == 'purchase':
                         if old_payment_type == 'hand':
-                            cash_account.deposit(old_amount, 'cash_in_hand')
+                            cash_account.deposit(old_amount, 'cash_in_hand', created_by=self.request.user, note=note)
                         elif old_payment_type == 'bank':
-                            cash_account.deposit(old_amount, 'cash_in_bank')
+                            cash_account.deposit(old_amount, 'cash_in_bank', created_by=self.request.user, note=note)
                         elif old_payment_type == 'check':
-                            cash_account.deposit(old_amount, 'cash_in_check')
-                    
+                            cash_account.deposit(old_amount, 'cash_in_check', created_by=self.request.user, note=note)
+
                     # Apply the new transaction
                     if instance.invoice_type == 'sale':
                         if instance.payment_type == 'hand':
-                            cash_account.deposit(instance.amount, 'cash_in_hand')
+                            cash_account.deposit(instance.amount, 'cash_in_hand', created_by=self.request.user, note=note)
                         elif instance.payment_type == 'bank':
-                            cash_account.deposit(instance.amount, 'cash_in_bank')
+                            cash_account.deposit(instance.amount, 'cash_in_bank', created_by=self.request.user, note=note)
                         elif instance.payment_type == 'check':
-                            cash_account.deposit(instance.amount, 'cash_in_check')
+                            cash_account.deposit(instance.amount, 'cash_in_check', created_by=self.request.user, note=note)
                     elif instance.invoice_type == 'purchase':
                         if instance.payment_type == 'hand':
-                            cash_account.withdraw(instance.amount, 'cash_in_hand')
+                            cash_account.withdraw(instance.amount, 'cash_in_hand', created_by=self.request.user, note=note)
                         elif instance.payment_type == 'bank':
-                            cash_account.withdraw(instance.amount, 'cash_in_bank')
+                            cash_account.withdraw(instance.amount, 'cash_in_bank', created_by=self.request.user, note=note)
                         elif instance.payment_type == 'check':
-                            cash_account.withdraw(instance.amount, 'cash_in_check')
+                            cash_account.withdraw(instance.amount, 'cash_in_check', created_by=self.request.user, note=note)
 
 
 
@@ -197,14 +199,15 @@ class CashAccountTransferViewSet(viewsets.ModelViewSet):
         to_type = serializer.validated_data['to_type']
         amount = serializer.validated_data['amount']
         transfer_date = serializer.validated_data.get('transfer_date')
+        note = serializer.validated_data.get('note', '')
 
         if from_account == to_account:
             if from_type == to_type:
                 raise serializers.ValidationError("Cannot transfer to the same account and type.")
             # Use transfer method for same account, which handles both sides
-            from_account.transfer(from_type, to_type, amount)
+            from_account.transfer(from_type, to_type, amount, created_by=self.request.user, note=note)
         else:
             # Different accounts: withdraw from source, deposit to target
-            from_account.withdraw(amount, from_type)
-            to_account.deposit(amount, to_type)
+            from_account.withdraw(amount, from_type, created_by=self.request.user, note=note)
+            to_account.deposit(amount, to_type, created_by=self.request.user, note=note)
         serializer.save(created_by=self.request.user, transfer_date=transfer_date)
