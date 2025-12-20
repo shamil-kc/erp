@@ -327,3 +327,18 @@ class AssetViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user, modified_at=timezone.now())
+
+class AssetSaleViewSet(viewsets.ModelViewSet):
+    queryset = AssetSale.objects.all().order_by('-sale_date')
+    serializer_class = AssetSaleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        from banking.models import CashAccount
+        cash_account = CashAccount.objects.first()
+        if cash_account:
+            cash_account.deposit(instance.sale_price, f'cash_in_{instance.payment_type}')
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user, modified_at=timezone.now())

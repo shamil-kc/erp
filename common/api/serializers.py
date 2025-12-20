@@ -59,3 +59,13 @@ class AssetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Asset
         fields = '__all__'
+
+class AssetSaleSerializer(serializers.ModelSerializer):
+    asset = AssetSerializer(read_only=True)
+    asset_id = serializers.PrimaryKeyRelatedField(
+        queryset=Asset.objects.all(), write_only=True, source='asset'
+    )
+
+    class Meta:
+        model = AssetSale
+        fields = ['id', 'asset', 'asset_id', 'sale_price', 'sale_date', 'notes', 'payment_type']

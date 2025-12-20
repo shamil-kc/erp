@@ -201,3 +201,34 @@ class ExtraPurchase(models.Model):
 
     def __str__(self):
         return f"ExtraPurchase for {self.purchase_invoice}"
+
+
+class AssetSale(models.Model):
+    PAYMENT_TYPE_CHOICES = (
+        ('hand', 'Cash'),
+        ('bank', 'Bank'),
+        ('check', 'Check'),
+    )
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='sales')
+    sale_price = models.DecimalField(max_digits=12, decimal_places=2)
+    sale_date = models.DateField(default=timezone.now)
+    notes = models.TextField(blank=True, null=True)
+    payment_type = models.CharField(
+        max_length=25,
+        choices=PAYMENT_TYPE_CHOICES,
+        default='hand'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Mark asset as sold
+        if self.asset.status != 'sold':
+            self.asset.status = 'sold'
+            self.asset.save(update_fields=['status'])
+
+    def __str__(self):
+        return f"Sale of {self.asset.name} on {self.sale_date} for {self.sale_price}"

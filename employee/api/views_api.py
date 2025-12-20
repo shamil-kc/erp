@@ -102,20 +102,9 @@ class SalaryPaymentViewSet(viewsets.ModelViewSet):
         # Payment logic: affect cash/bank/check account here as needed
         from banking.models import CashAccount
         cash_account = CashAccount.objects.first()
-        if instance.payment_type == 'hand':
-            cash_account.withdraw(
-                instance.amount_aed, 'cash_in_hand',created_by=self.request.user,
-                note='Salary Payment hand invoice ID {}'.format(instance.salary_entry.id))
-        elif instance.payment_type == 'bank':
-            cash_account.withdraw(
-                instance.amount_aed, 'cash_in_bank',
-                created_by=self.request.user,
-                note='Salary Payment bank invoice ID {}'.format(instance.salary_entry.id))
-        elif instance.payment_type == 'check':
-            cash_account.deposit(
-                instance.amount_aed, 'cash_in_check',
-                created_by=self.request.user,
-                note='Salary Payment hand invoice ID {}'.format(instance.salary_entry.id))
+        if cash_account:
+            cash_account.withdraw(instance.amount_aed, f'cash_in_{instance.payment_type}')
+
         # Add logic for bank/check if needed
         log_activity(self.request, 'create', instance)
 

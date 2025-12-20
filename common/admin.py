@@ -45,3 +45,14 @@ class WageChargesAdmin(admin.ModelAdmin):
 @admin.register(ExtraPurchase)
 class ExtraPurchaseAdmin(admin.ModelAdmin):
     list_display = ('description', 'amount', 'vat')
+
+@admin.register(Asset)
+class AssetAdmin(admin.ModelAdmin):
+    list_display = ('name', 'quantity', 'status', 'price')
+    search_fields = ('name',)
+
+@admin.register(AssetSale)
+class AssetSaleAdmin(admin.ModelAdmin):
+    list_display = ('asset', 'sale_date', 'sale_price', 'payment_type')
+    search_fields = ('asset__name',)
+    date_hierarchy = 'sale_date'

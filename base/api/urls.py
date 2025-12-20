@@ -42,6 +42,7 @@ router.register(r'delivery-notes', DeliveryNoteViewSet)
 router.register(r'account-transfer', CashAccountTransferViewSet)
 
 router.register(r'salary-payment', SalaryPaymentViewSet)
+router.register(r'asset-sell', AssetSaleViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
