@@ -303,3 +303,24 @@ class AssetViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user, modified_at=timezone.now())
+
+
+class ExpenseTotalsAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Apply filters using ExpenseFilter
+        queryset = Expense.objects.all()
+        filterset = ExpenseFilter(request.GET, queryset=queryset)
+        if filterset.is_valid():
+            filtered_qs = filterset.qs
+        else:
+            filtered_qs = queryset
+
+        total_aed = filtered_qs.aggregate(total=Sum('amount_aed'))['total'] or 0
+        total_usd = filtered_qs.aggregate(total=Sum('amount_usd'))['total'] or 0
+
+        return Response({
+            "total_aed": float(total_aed),
+            "total_usd": float(total_usd)
+        })
