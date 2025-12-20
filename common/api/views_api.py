@@ -15,6 +15,8 @@ from banking.models import CashAccount
 from purchase.models import PurchaseInvoice, PurchaseItem
 from sale.models import SaleItem,SaleInvoice
 from employee.models import SalaryEntry
+from common.api.filters import ExpenseFilter
+from django_filters.rest_framework import DjangoFilterBackend
 
 
 class TaxViewSet(viewsets.ModelViewSet):
@@ -54,6 +56,8 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.all().order_by('-created_at')
     serializer_class = ExpenseSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ExpenseFilter
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
