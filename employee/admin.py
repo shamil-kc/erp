@@ -19,3 +19,11 @@ class SalaryEntryAdmin(admin.ModelAdmin):
     list_filter = ('entry_type', 'date', 'account')
     search_fields = ('account__name', 'notes')
     date_hierarchy = 'date'
+
+
+@admin.register(SalaryPayment)
+class SalaryPaymentAdmin(admin.ModelAdmin):
+    list_display = ('salary_entry', 'payment_type', 'amount_aed', 'amount_usd', 'date', 'notes')
+    list_filter = ('payment_type', 'date')
+    search_fields = ('salary_entry__account__name', 'notes')
+    date_hierarchy = 'date'

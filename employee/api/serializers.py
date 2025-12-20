@@ -32,7 +32,22 @@ class SalaryEntrySerializer(serializers.ModelSerializer):
         model = SalaryEntry
         fields = [
             'id', 'account', 'account_id', 'amount_aed', 'amount_usd',
-            'entry_type', 'date', 'notes', 'payment_type'
+            'entry_type', 'date', 'notes'
+        ]
+
+class SalaryPaymentSerializer(serializers.ModelSerializer):
+    salary_entry = SalaryEntrySerializer(read_only=True)
+    salary_entry_id = serializers.PrimaryKeyRelatedField(
+        queryset=SalaryEntry.objects.all(),
+        source='salary_entry',
+        write_only=True
+    )
+
+    class Meta:
+        model = SalaryPayment
+        fields = [
+            'id', 'salary_entry', 'salary_entry_id', 'amount_aed', 'amount_usd',
+            'payment_type', 'date', 'notes'
         ]
 
 class EmployeeLeaveSerializer(serializers.ModelSerializer):

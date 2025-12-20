@@ -33,8 +33,6 @@ class Account(models.Model):
 
 
 class SalaryEntry(models.Model):
-    PAYMENT_TYPE_CHOICES = (('hand', 'Cash'), ('bank', 'Bank'),
-                            ('check', 'Check'),)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
@@ -43,9 +41,6 @@ class SalaryEntry(models.Model):
         ('bonus', 'Bonus'),
         ('reimbursement', 'Reimbursement')
     ])
-    payment_type = models.CharField(max_length=25,
-                                    choices=PAYMENT_TYPE_CHOICES,
-                                    default='hand')
     date = models.DateField(default=timezone.now)
     notes = models.CharField(max_length=250, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
@@ -57,6 +52,23 @@ class SalaryEntry(models.Model):
 
     def __str__(self):
         return f"{self.account.name} {self.entry_type}: AED {self.amount_aed}, USD {self.amount_usd}"
+
+
+class SalaryPayment(models.Model):
+    PAYMENT_TYPE_CHOICES = (('hand', 'Cash'), ('bank', 'Bank'), ('check', 'Check'),)
+    salary_entry = models.ForeignKey(SalaryEntry, on_delete=models.CASCADE, related_name='payments')
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payment_type = models.CharField(max_length=25, choices=PAYMENT_TYPE_CHOICES, default='hand')
+    date = models.DateField(default=timezone.now)
+    notes = models.CharField(max_length=250, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return f"Payment for {self.salary_entry} - AED {self.amount_aed} ({self.payment_type})"
 
 
 class EmployeeLeave(models.Model):

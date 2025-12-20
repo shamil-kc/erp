@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from django.forms.models import model_to_dict
 from .serializers import *
-from .filters import SalaryEntryFilter
+from .filters import SalaryEntryFilter, SalaryPaymentFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions
 from base.utils import log_activity
@@ -22,9 +22,6 @@ class SalaryEntryViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
-        cash_account = CashAccount.objects.first()
-        cash_account.withdraw(instance.amount_aed,
-                              f'cash_in_{instance.payment_type}')
         log_activity(self.request, 'create', instance)
 
     def perform_update(self, serializer):
@@ -88,6 +85,39 @@ class EmployeeLeaveViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user, modified_at=timezone.now())
+
+
+class SalaryPaymentViewSet(viewsets.ModelViewSet):
+    queryset = SalaryPayment.objects.all().order_by('-created_at')
+    serializer_class = SalaryPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = SalaryPaymentFilter
+
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        # Payment logic: affect cash/bank/check account here as needed
+        from banking.models import CashAccount
+        cash_account = CashAccount.objects.first()
+        if instance.payment_type == 'hand':
+            cash_account.withdraw(
+                instance.amount_aed, 'cash_in_hand',created_by=self.request.user,
+                note='Salary Payment hand invoice ID {}'.format(instance.salary_entry.id))
+        elif instance.payment_type == 'bank':
+            cash_account.withdraw(
+                instance.amount_aed, 'cash_in_bank',
+                created_by=self.request.user,
+                note='Salary Payment bank invoice ID {}'.format(instance.salary_entry.id))
+        elif instance.payment_type == 'check':
+            cash_account.deposit(
+                instance.amount_aed, 'cash_in_check',
+                created_by=self.request.user,
+                note='Salary Payment hand invoice ID {}'.format(instance.salary_entry.id))
+        # Add logic for bank/check if needed
+        log_activity(self.request, 'create', instance)
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user, modified_at=timezone.now())

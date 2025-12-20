@@ -41,6 +41,8 @@ router.register(r'delivery-notes', DeliveryNoteViewSet)
 
 router.register(r'account-transfer', CashAccountTransferViewSet)
 
+router.register(r'salary-payment', SalaryPaymentViewSet)
+
 urlpatterns = [
     path('', include(router.urls)),
     path('inventory-report/', InventoryReportAPIView.as_view()),
