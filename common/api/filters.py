@@ -1,5 +1,5 @@
 from django_filters import rest_framework as filters
-from common.models import Expense
+from common.models import Expense, Wage
 
 class ExpenseFilter(filters.FilterSet):
     date__gte = filters.DateFilter(
@@ -13,3 +13,12 @@ class ExpenseFilter(filters.FilterSet):
         model = Expense
         fields = ['date__gte', 'date__lte', 'expense_type', 'category']
 
+class WageFilter(filters.FilterSet):
+    date__gte = filters.DateFilter(
+        field_name='date', lookup_expr='gte')
+    date__lte = filters.DateFilter(
+        field_name='date', lookup_expr='lte')
+
+    class Meta:
+        model = Wage
+        fields = ['date__gte', 'date__lte']

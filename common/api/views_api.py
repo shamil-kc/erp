@@ -15,7 +15,7 @@ from banking.models import CashAccount
 from purchase.models import PurchaseInvoice, PurchaseItem
 from sale.models import SaleItem,SaleInvoice
 from employee.models import SalaryEntry
-from common.api.filters import ExpenseFilter
+from common.api.filters import ExpenseFilter, WageFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
 
@@ -238,6 +238,8 @@ class WageViewSet(viewsets.ModelViewSet):
     queryset = Wage.objects.all().order_by('-created_at')
     serializer_class = WageSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = WageFilter
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
