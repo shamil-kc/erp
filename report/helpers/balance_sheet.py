@@ -136,6 +136,18 @@ def get_balance_sheet_report(as_of_date=None):
     profit_loss = get_profit_and_loss_report('2000-01-01', as_of_date)
     net_profit = profit_loss['profit']['net_profit']
 
+    # Total sale VAT up to as_of_date
+    total_sale_vat = SaleInvoice.objects.filter(
+        status=SaleInvoice.STATUS_APPROVED,
+        sale_date__lte=as_of_date
+    ).aggregate(total=Sum('vat_amount_aed'))['total'] or Decimal('0')
+
+    # Total purchase VAT up to as_of_date
+    total_purchase_vat = PurchaseInvoice.objects.filter(
+        status=PurchaseInvoice.STATUS_APPROVED,
+        purchase_date__lte=as_of_date
+    ).aggregate(total=Sum('vat_amount_aed'))['total'] or Decimal('0')
+
     return {
         'as_of_date': str(as_of_date),
         # Assets
@@ -162,4 +174,7 @@ def get_balance_sheet_report(as_of_date=None):
         'total_salary_entry': float(total_salary_entry),
         'total_salary_paid': float(total_salary_paid),
         'total_salary_pending': float(total_salary_pending),
+        # VAT
+        'total_sale_vat': float(total_sale_vat),
+        'total_purchase_vat': float(total_purchase_vat),
     }
