@@ -119,6 +119,19 @@ def get_balance_sheet_report(as_of_date=None):
         payment_date__lte=as_of_date
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
+    # Salary paid and pending
+    from employee.models import SalaryEntry, SalaryPayment
+    # Total salary paid: sum of all payments made up to as_of_date
+    total_salary_paid = SalaryPayment.objects.filter(
+        date__lte=as_of_date
+    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+
+    # Total salary pending: sum of all salary entries minus sum of all payments
+    total_salary_entry = SalaryEntry.objects.filter(
+        date__lte=as_of_date
+    ).aggregate(total=Sum('amount_aed'))['total'] or Decimal('0')
+    total_salary_pending = total_salary_entry - total_salary_paid
+
     # Profit and loss total (net profit till date)
     profit_loss = get_profit_and_loss_report('2000-01-01', as_of_date)
     net_profit = profit_loss['profit']['net_profit']
@@ -145,4 +158,8 @@ def get_balance_sheet_report(as_of_date=None):
         # Cheque pending
         'sale_cheque_pending': float(sale_cheque_pending),
         'purchase_cheque_pending': float(purchase_cheque_pending),
+        # Salary
+        'total_salary_entry': float(total_salary_entry),
+        'total_salary_paid': float(total_salary_paid),
+        'total_salary_pending': float(total_salary_pending),
     }
