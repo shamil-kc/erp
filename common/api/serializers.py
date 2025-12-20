@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from common.models import *
+from customer.models import Party
 
 
 class ServiceFeeSerializer(serializers.ModelSerializer):
@@ -60,12 +61,24 @@ class AssetSerializer(serializers.ModelSerializer):
         model = Asset
         fields = '__all__'
 
+class PartySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Party
+        fields = ['id', 'name', 'type']
+
 class AssetSaleSerializer(serializers.ModelSerializer):
     asset = AssetSerializer(read_only=True)
     asset_id = serializers.PrimaryKeyRelatedField(
         queryset=Asset.objects.all(), write_only=True, source='asset'
     )
+    party = PartySerializer(read_only=True)
+    party_id = serializers.PrimaryKeyRelatedField(
+        queryset=Party.objects.all(), write_only=True, source='party', required=False, allow_null=True
+    )
 
     class Meta:
         model = AssetSale
-        fields = ['id', 'asset', 'asset_id', 'sale_price', 'sale_date', 'notes', 'payment_type']
+        fields = [
+            'id', 'asset', 'asset_id', 'sale_price', 'sale_date', 'notes',
+            'payment_type', 'vat', 'party', 'party_id'
+        ]

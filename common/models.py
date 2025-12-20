@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from customer.models import Party
 
 
 class ServiceFee(models.Model):
@@ -218,6 +219,8 @@ class AssetSale(models.Model):
         choices=PAYMENT_TYPE_CHOICES,
         default='hand'
     )
+    vat = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True, related_name='asset_sales')
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
