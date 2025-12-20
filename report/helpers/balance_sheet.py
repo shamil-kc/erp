@@ -103,6 +103,22 @@ def get_balance_sheet_report(as_of_date=None):
     )
     amount_payable = total_purchases - payments_made
 
+    # Sale cheque pending: sum of sale payments by cheque not cleared
+    sale_cheque_pending = PaymentEntry.objects.filter(
+        invoice_type='sale',
+        payment_type='check',
+        is_cheque_cleared=False,
+        payment_date__lte=as_of_date
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    # Purchase cheque pending: sum of purchase payments by cheque not cleared
+    purchase_cheque_pending = PaymentEntry.objects.filter(
+        invoice_type='purchase',
+        payment_type='check',
+        is_cheque_cleared=False,
+        payment_date__lte=as_of_date
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
     # Profit and loss total (net profit till date)
     profit_loss = get_profit_and_loss_report('2000-01-01', as_of_date)
     net_profit = profit_loss['profit']['net_profit']
@@ -126,4 +142,7 @@ def get_balance_sheet_report(as_of_date=None):
         'sundry_creditors_total': float(sundry_creditors_total),
         'sundry_creditors_list': sundry_creditors_list,
         'profit_and_loss': float(net_profit),
+        # Cheque pending
+        'sale_cheque_pending': float(sale_cheque_pending),
+        'purchase_cheque_pending': float(purchase_cheque_pending),
     }
