@@ -1,8 +1,9 @@
 from rest_framework import viewsets
 from django.forms.models import model_to_dict
 from .serializers import *
-from django_filters.rest_framework import DjangoFilterBackend
-from .filters import SaleInvoiceFilter, SaleReturnItemFilter
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet
+import django_filters
+from .filters import SaleInvoiceFilter, SaleReturnItemFilter, SaleItemFilter
 from decimal import Decimal
 from django.db import transaction
 from rest_framework import permissions
@@ -80,6 +81,8 @@ class SaleItemViewSet(viewsets.ModelViewSet):
     queryset = SaleItem.objects.all()
     serializer_class = SaleItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = SaleItemFilter
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

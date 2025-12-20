@@ -1,5 +1,5 @@
 import django_filters
-from sale.models import SaleInvoice, SaleReturnItem
+from sale.models import SaleInvoice, SaleReturnItem, SaleItem
 
 
 class SaleInvoiceFilter(django_filters.FilterSet):
@@ -20,3 +20,11 @@ class SaleReturnItemFilter(django_filters.FilterSet):
     class Meta:
         model = SaleReturnItem
         fields = ['party_id']
+
+
+class SaleItemFilter(django_filters.FilterSet):
+    purchase_item = django_filters.NumberFilter(field_name='purchase_item_id')
+
+    class Meta:
+        model = SaleItem
+        fields = ['purchase_item']
