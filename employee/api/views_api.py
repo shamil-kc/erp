@@ -1,6 +1,7 @@
 from rest_framework import viewsets
 from django.forms.models import model_to_dict
 from .serializers import *
+from .filters import SalaryEntryFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions
 from base.utils import log_activity
@@ -13,6 +14,8 @@ class SalaryEntryViewSet(viewsets.ModelViewSet):
     queryset = SalaryEntry.objects.all().order_by('-created_at')
     serializer_class = SalaryEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = SalaryEntryFilter
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
@@ -69,5 +72,3 @@ class EmployeeLeaveViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user, modified_at=timezone.now())
-
-
