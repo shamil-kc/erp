@@ -17,6 +17,7 @@ from sale.models import SaleItem,SaleInvoice
 from employee.models import SalaryEntry
 from common.api.filters import ExpenseFilter, WageFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.decorators import action
 
 
 class TaxViewSet(viewsets.ModelViewSet):
@@ -73,6 +74,18 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                    new_data.items() if old_data[k] != v}
         log_activity(self.request, 'update', instance, changes)
 
+    @action(detail=False, methods=['get'], url_path='totals')
+    def totals(self, request):
+        """
+        Returns total amounts (AED & USD) for filtered expenses.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        total_aed = queryset.aggregate(total=Sum('amount_aed'))['total'] or 0
+        total_usd = queryset.aggregate(total=Sum('amount_usd'))['total'] or 0
+        return Response({
+            "total_aed": float(total_aed),
+            "total_usd": float(total_usd)
+        })
 
 
 class TaxSummaryAPIView(APIView):
@@ -255,6 +268,17 @@ class WageViewSet(viewsets.ModelViewSet):
                    new_data.items() if old_data[k] != v}
         log_activity(self.request, 'update', instance, changes)
 
+    @action(detail=False, methods=['get'], url_path='totals')
+    def totals(self, request):
+        """
+        Returns total amount (AED) for filtered wages.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        total_aed = queryset.aggregate(total=Sum('amount_aed'))['total'] or 0
+        return Response({
+            "total_aed": float(total_aed)
+        })
+
 
 class RemindersAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -303,24 +327,3 @@ class AssetViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user, modified_at=timezone.now())
-
-
-class ExpenseTotalsAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        # Apply filters using ExpenseFilter
-        queryset = Expense.objects.all()
-        filterset = ExpenseFilter(request.GET, queryset=queryset)
-        if filterset.is_valid():
-            filtered_qs = filterset.qs
-        else:
-            filtered_qs = queryset
-
-        total_aed = filtered_qs.aggregate(total=Sum('amount_aed'))['total'] or 0
-        total_usd = filtered_qs.aggregate(total=Sum('amount_usd'))['total'] or 0
-
-        return Response({
-            "total_aed": float(total_aed),
-            "total_usd": float(total_usd)
-        })

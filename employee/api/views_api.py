@@ -8,6 +8,9 @@ from base.utils import log_activity
 from banking.models import CashAccount
 from employee.models import SalaryEntry, Account, Designation, EmployeeLeave
 from django.utils import timezone
+from rest_framework.decorators import action
+from django.db.models import Sum
+from rest_framework.response import Response
 
 
 class SalaryEntryViewSet(viewsets.ModelViewSet):
@@ -35,6 +38,21 @@ class SalaryEntryViewSet(viewsets.ModelViewSet):
         log_activity(self.request, 'update', instance, changes)
 
         # No cash logic on update (only on create)
+
+    @action(detail=False, methods=['get'], url_path='totals')
+    def totals(self, request):
+        """
+        Returns total amounts (AED & USD) for filtered salary entries.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        total_aed = queryset.aggregate(total=Sum('amount_aed'))['total'] or 0
+        total_usd = queryset.aggregate(total=Sum('amount_usd'))['total'] or 0
+        return Response({
+            "total_aed": float(total_aed),
+            "total_usd": float(total_usd)
+        })
+
+
 class AccountViewSet(viewsets.ModelViewSet):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
@@ -59,6 +77,7 @@ class DesignationViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user,
                         modified_at=timezone.now())
+
 
 class EmployeeLeaveViewSet(viewsets.ModelViewSet):
     queryset = EmployeeLeave.objects.all()

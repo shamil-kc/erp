@@ -61,6 +61,5 @@ urlpatterns = [
     path('generate-perfoma-invoice-number/', generate_perfoma_invoice_number_api,
          name='generate-perfoma-invoice-number'),
 
-    path('expense-totals/', ExpenseTotalsAPIView.as_view(), name='expense-totals')
 
 ]
