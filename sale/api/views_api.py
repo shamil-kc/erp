@@ -15,6 +15,7 @@ from inventory.models import Stock
 from django.utils import timezone
 from rest_framework.decorators import api_view
 from sale.utils import generate_perfoma_invoice_number
+from django.db.models import Sum
 
 
 class SaleInvoiceViewSet(viewsets.ModelViewSet):
@@ -60,6 +61,19 @@ class SaleInvoiceViewSet(viewsets.ModelViewSet):
         elif self.action in ['update', 'partial_update']:
             return SaleInvoiceUpdateSerializer
         return SaleInvoiceSerializer  # your existing read serializer
+
+    @action(detail=False, methods=['get'], url_path='totals')
+    def totals(self, request):
+        """
+        Returns total amounts (AED & USD) for filtered sale invoices.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        total_aed = queryset.aggregate(total=Sum('total_with_vat_aed'))['total'] or 0
+        total_usd = queryset.aggregate(total=Sum('total_with_vat_usd'))['total'] or 0
+        return Response({
+            "total_aed": float(total_aed),
+            "total_usd": float(total_usd)
+        })
 
 
 class SaleItemViewSet(viewsets.ModelViewSet):

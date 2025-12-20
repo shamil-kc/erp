@@ -13,6 +13,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from common.models import ExtraPurchase
 from purchase.api.serializers import ExtraPurchaseSerializer
+from django.db.models import Sum
 
 
 class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
@@ -46,6 +47,18 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
             return PurchaseInvoiceUpdateSerializer
         return PurchaseInvoiceSerializer
 
+    @action(detail=False, methods=['get'], url_path='totals')
+    def totals(self, request):
+        """
+        Returns total amounts (AED & USD) for filtered purchase invoices.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        total_aed = queryset.aggregate(total=Sum('total_with_vat_aed'))['total'] or 0
+        total_usd = queryset.aggregate(total=Sum('total_with_vat_usd'))['total'] or 0
+        return Response({
+            "total_aed": float(total_aed),
+            "total_usd": float(total_usd)
+        })
 
 
 class PurchaseItemViewSet(viewsets.ModelViewSet):
