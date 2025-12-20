@@ -7,7 +7,7 @@ from common.api.serializers import (ServiceFeeSerializer,
 from banking.api.serializers import PaymentEntrySerializer
 from sale.models import *
 from purchase.models import PurchaseItem
-from banking.models import PaymentEntry
+from banking.models import PaymentEntry, CashAccount
 from common.models import ServiceFee,Commission, ExtraCharges
 from django.contrib.contenttypes.models import ContentType
 
@@ -357,6 +357,7 @@ class SaleReturnItemSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items', [])
         validated_data['returned_by'] = self.context['request'].user
         instance = super().create(validated_data)
+        total_return_amount = 0
         for entry in items_data:
             SaleReturnItemEntry.objects.create(
                 sale_return=instance,
@@ -364,6 +365,27 @@ class SaleReturnItemSerializer(serializers.ModelSerializer):
                 qty=entry['qty'],
                 remarks=entry.get('remarks', '')
             )
+            total_return_amount += entry['sale_item'].sale_price_aed * entry['qty']
+        # --- Cash Transaction for Sale Return ---
+        try:
+            sale_invoice = instance.sale_invoice
+            # Use the first/main cash account
+            cash_account = CashAccount.objects.first()
+            if cash_account and sale_invoice:
+                # Withdraw the returned amount from the cash account
+                # You may want to use sale_invoice.total_with_vat_aed or similar
+                amount = total_return_amount
+                if amount:
+                    cash_account.withdraw(
+                        amount,
+                        'cash_in_bank',
+                        # account_type
+                        created_by=self.context['request'].user,
+                        note=f"Sale Return #{instance.id} for Invoice #{sale_invoice.id}"
+                    )
+        except Exception as e:
+            print(f"Error processing cash transaction for sale return: {e}")
+        # --- End Cash Transaction ---
         return instance
 
     def update(self, instance, validated_data):

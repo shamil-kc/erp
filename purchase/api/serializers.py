@@ -4,7 +4,7 @@ from products.api.serializers import ProductItemSerializer
 from banking.api.serializers import PaymentEntrySerializer
 from customer.api.serializers import PartySerializer
 from purchase.models import *
-from banking.models import PaymentEntry
+from banking.models import PaymentEntry, CashAccount
 from inventory.models import Stock
 from common.models import ExtraCharges, ExtraPurchase
 from django.contrib.contenttypes.models import ContentType
@@ -366,6 +366,8 @@ class PurchaseReturnItemSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items', [])
         validated_data['returned_by'] = self.context['request'].user
         instance = super().create(validated_data)
+        total_returned_qty = 0
+        total_returned_amount = 0
         for entry in items_data:
             PurchaseReturnItemEntry.objects.create(
                 purchase_return=instance,
@@ -373,6 +375,25 @@ class PurchaseReturnItemSerializer(serializers.ModelSerializer):
                 qty=entry['qty'],
                 remarks=entry.get('remarks', '')
             )
+            total_returned_qty += entry['qty']
+            amount = entry['purchase_item'].unit_price_aed * entry['qty']
+            total_returned_amount += amount
+        # --- Cash Transaction for Purchase Return ---
+        try:
+            purchase_invoice = instance.purchase_invoice
+            cash_account = CashAccount.objects.first()
+            if cash_account and purchase_invoice:
+                # Deposit the returned amount to the cash account
+                amount = total_returned_amount
+                if amount:
+                    cash_account.deposit(
+                        amount,
+                        'cash_in_bank',
+                        created_by=self.context['request'].user,
+                        note=f"Purchase Return #{instance.id} for Invoice #{purchase_invoice.id}"
+                    )
+        except Exception as e:
+            pass
         return instance
 
     def update(self, instance, validated_data):
