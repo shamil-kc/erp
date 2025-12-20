@@ -13,6 +13,8 @@ from django.contrib.contenttypes.models import ContentType
 class PurchaseItemSerializer(serializers.ModelSerializer):
     item = serializers.SerializerMethodField()
     invoice_id = serializers.SerializerMethodField()
+    party = serializers.SerializerMethodField()
+
     class Meta:
         model = PurchaseItem
         fields = '__all__'
@@ -27,6 +29,11 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
     def get_invoice_id(self, obj):
         if obj.invoice:
             return obj.invoice.id
+        return None
+
+    def get_party(self, obj):
+        if obj.invoice and obj.invoice.party:
+            return {'party_id':obj.invoice.party.id, 'party_name':obj.invoice.party.name}
         return None
 
 
