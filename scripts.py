@@ -5,31 +5,39 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shiperp.settings")
 django.setup()
 
 from common.models import Expense
-from banking.models import CashTransaction, CashAccount
+from banking.models import CashTransaction, CashAccount, PaymentEntry
 from django.db import transaction
 
 
-def reset_cash_account_amounts():
+def update_cleared_sale_purchase_checks_in_main_cash_account():
     main_account = CashAccount.objects.first()
     if not main_account:
         print("No CashAccount found. Aborting.")
         return
 
-    account_types = ['cash_in_hand', 'cash_in_bank', 'cash_in_check']
-    totals = {atype: 0 for atype in account_types}
+    # Cleared sale checks: add to cash_in_bank
+    cleared_sale_checks = PaymentEntry.objects.filter(
+        invoice_type='sale',
+        payment_type='check',
+        is_cheque_cleared=True
+    )
+    sale_total = sum(entry.amount for entry in cleared_sale_checks)
 
-    transactions = CashTransaction.objects.filter(cash_account=main_account)
-    for tx in transactions:
-        sign = 1 if tx.transaction_type == 'deposit' else -1
-        if tx.account_type in totals:
-            totals[tx.account_type] += sign * tx.amount
+    # Cleared purchase checks: subtract from cash_in_bank
+    cleared_purchase_checks = PaymentEntry.objects.filter(
+        invoice_type='purchase',
+        payment_type='check',
+        is_cheque_cleared=True
+    )
+    purchase_total = sum(entry.amount for entry in cleared_purchase_checks)
 
-    main_account.cash_in_hand = totals['cash_in_hand']
-    main_account.cash_in_bank = totals['cash_in_bank']
-    main_account.cash_in_check = totals['cash_in_check']
+    main_account.cash_in_bank += sale_total
+    main_account.cash_in_bank -= purchase_total
     main_account.save()
-    print("Main CashAccount amounts have been reset based on CashTransaction records.")
+
+    print(f"Updated main account cash_in_bank: +{sale_total} (sale checks), -{purchase_total} (purchase checks)")
 
 
 if __name__ == "__main__":
-    reset_cash_account_amounts()
+    with transaction.atomic():
+        update_cleared_sale_purchase_checks_in_main_cash_account()
