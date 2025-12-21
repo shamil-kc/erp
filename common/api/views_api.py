@@ -63,7 +63,9 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
         cash_account = CashAccount.objects.first()
-        cash_account.withdraw(instance.amount_aed, f'cash_in_{instance.payment_type}')
+        cash_account.withdraw(
+            instance.amount_aed, f'cash_in_{instance.payment_type}',
+            note=f'Expense #{instance.id}')
     def perform_update(self, serializer):
         old_instance = self.get_object()
         old_data = model_to_dict(old_instance)
