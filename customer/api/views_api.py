@@ -68,7 +68,13 @@ class PartyViewSet(viewsets.ModelViewSet):
 
         # Balance amount owed by customer
         # Assuming: balance = total_sale_amount - total_payments
-        balance_amount = total_sale_amount - total_payments
+        # Corrected balance calculation
+        if total_sale_amount > 0 and total_purchase_amount == 0:
+            balance_amount = total_sale_amount - total_payments
+        elif total_purchase_amount > 0 and total_sale_amount == 0:
+            balance_amount = total_purchase_amount - total_payments
+        else:
+            balance_amount = total_sale_amount - total_payments  # fallback to sales logic
 
         return Response({
             'total_sale_count': total_sale_count,
@@ -233,7 +239,13 @@ class PartyViewSet(viewsets.ModelViewSet):
             cheque_due_total = cheque_due.aggregate(total=models.Sum('amount'))['total'] or 0
             cheque_paid_total = cheque_paid.aggregate(total=models.Sum('amount'))['total'] or 0
 
-            balance_amount = total_sale_amount - total_payments
+            # Corrected balance calculation
+            if total_sale_amount > 0 and total_purchase_amount == 0:
+                balance_amount = total_sale_amount - total_payments
+            elif total_purchase_amount > 0 and total_sale_amount == 0:
+                balance_amount = total_purchase_amount - total_payments
+            else:
+                balance_amount = total_sale_amount - total_payments  # fallback to sales logic
 
             # Apply has_balance filter
             if has_balance is not None:
