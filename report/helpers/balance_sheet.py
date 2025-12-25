@@ -103,6 +103,17 @@ def get_balance_sheet_report(as_of_date=None):
     )
     amount_payable = total_purchases - payments_made
 
+    # Amount receivable: total of approved sales minus payments received
+    total_sales = SaleInvoice.objects.filter(
+        status=SaleInvoice.STATUS_APPROVED,
+        sale_date__lte=as_of_date
+    ).aggregate(total=Sum('total_with_vat_aed'))['total'] or Decimal('0')
+    payments_received = PaymentEntry.objects.filter(
+        invoice_type='sale',
+        payment_date__lte=as_of_date
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    amount_receivable = total_sales - payments_received
+
     # Sale cheque pending: sum of sale payments by cheque not cleared
     sale_cheque_pending = PaymentEntry.objects.filter(
         invoice_type='sale',
@@ -164,6 +175,7 @@ def get_balance_sheet_report(as_of_date=None):
         # Liabilities
         'total_capital': float(total_capital),
         'amount_payable': float(amount_payable),
+        'amount_receivable': float(amount_receivable),
         'sundry_creditors_total': float(sundry_creditors_total),
         'sundry_creditors_list': sundry_creditors_list,
         'profit_and_loss': float(net_profit),
